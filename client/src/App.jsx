@@ -1,0 +1,735 @@
+import { useState, useEffect, useRef } from "react";
+
+const SCHOLARSHIP_TYPES = ["Merit-Based","Need-Based","Athletic","STEM / Engineering","Arts & Humanities","Graduate / Postgraduate","Undergraduate","International Students","Women in STEM","Minority / Diversity","Community Service","Research","Government / National"];
+const AGENT_SOURCES = [
+  { name:"Universities", icon:"🎓", task:"Scanning institutional databases" },
+  { name:"Governments",  icon:"🏛️", task:"Checking national programs" },
+  { name:"Foundations",  icon:"💎", task:"Mining private endowments" },
+  { name:"NGOs",         icon:"🌍", task:"Aggregating nonprofit awards" },
+  { name:"Industry",     icon:"⚙️", task:"Sourcing corporate grants" },
+  { name:"Research",     icon:"🔬", task:"Finding research fellowships" },
+];
+const LOADING_MSGS = ["Deploying 6 AI agents worldwide...","Scanning university endowments...","Mining government databases...","Aggregating private foundations...","Cross-referencing eligibility...","Ranking by match score..."];
+const MATCH_MSGS = ["Analysing your academic profile...","Matching against 10,000+ scholarships...","Scoring eligibility fit...","Ranking by win probability...","Personalising your results...","Finalising your match report..."];
+const TYPE_COLORS = { "Merit-Based":"#d4af37","Need-Based":"#60a5fa","STEM / Engineering":"#34d399","Research":"#a78bfa","Government / National":"#f87171","International Students":"#fb923c","Graduate / Postgraduate":"#e879f9","Women in STEM":"#f472b6" };
+const FREE_LIMIT = 3;
+
+function api(path, options = {}) {
+  const token = localStorage.getItem("scholar_token");
+  return fetch(path, { ...options, headers: { "Content-Type":"application/json", ...(token ? { Authorization:`Bearer ${token}` } : {}), ...options.headers } });
+}
+
+// ─── Auth Modal ───────────────────────────────────────────────────────────────
+function AuthModal({ onAuth }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState(""); const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false); const [error, setError] = useState("");
+  const inp = { width:"100%", padding:"12px 16px", borderRadius:10, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.12)", color:"white", fontSize:14, outline:"none", boxSizing:"border-box" };
+  const submit = async () => {
+    setError(""); if (!email||!password) return setError("Please fill in all fields");
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/auth/${mode}`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email,password}) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      localStorage.setItem("scholar_token", data.token); onAuth(data.user);
+    } catch(e) { setError(e.message); } finally { setLoading(false); }
+  };
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24 }}>
+      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:"1px solid rgba(212,175,55,0.2)",borderRadius:24,padding:40,width:"100%",maxWidth:420,boxShadow:"0 24px 80px rgba(0,0,0,0.6)" }}>
+        <div style={{ textAlign:"center",marginBottom:32 }}>
+          <div style={{ width:48,height:48,borderRadius:14,margin:"0 auto 12px",background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>S</div>
+          <h2 style={{ margin:0,fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:"white" }}>{mode==="login"?"Welcome back":"Create account"}</h2>
+          <p style={{ margin:"6px 0 0",fontSize:13,color:"rgba(255,255,255,0.4)" }}>{mode==="login"?"Sign in to continue":"Start finding scholarships worldwide"}</p>
+        </div>
+        <div style={{ display:"flex",flexDirection:"column",gap:12,marginBottom:16 }}>
+          <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={inp} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} onKeyDown={e=>e.key==="Enter"&&submit()} />
+          <input type="password" placeholder="Password (min 6 characters)" value={password} onChange={e=>setPassword(e.target.value)} style={inp} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} onKeyDown={e=>e.key==="Enter"&&submit()} />
+        </div>
+        {error && <div style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.25)",color:"#fca5a5",padding:"10px 14px",borderRadius:10,fontSize:13,marginBottom:16 }}>{error}</div>}
+        <button onClick={submit} disabled={loading} style={{ width:"100%",padding:13,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"Please wait...":mode==="login"?"Sign In":"Create Account"}</button>
+        <p style={{ textAlign:"center",marginTop:20,fontSize:13,color:"rgba(255,255,255,0.35)" }}>
+          {mode==="login"?"Don't have an account? ":"Already have an account? "}
+          <button onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");}} style={{ background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontWeight:600,fontSize:13 }}>{mode==="login"?"Sign up free":"Sign in"}</button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Upgrade Modal ────────────────────────────────────────────────────────────
+function UpgradeModal({ onUpgrade, onClose, loading, reason }) {
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24 }}>
+      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:"1px solid rgba(212,175,55,0.3)",borderRadius:24,padding:40,width:"100%",maxWidth:440,textAlign:"center" }}>
+        <div style={{ fontSize:40,marginBottom:16 }}>🔒</div>
+        <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:900,color:"white",margin:"0 0 10px" }}>{reason==="search_limit"?"Free search used":"Upgrade to Pro"}</h2>
+        <p style={{ fontSize:14,color:"rgba(255,255,255,0.5)",lineHeight:1.7,margin:"0 auto 28px",maxWidth:320 }}>
+          {reason==="search_limit" ? "Your free search has been used. Upgrade for unlimited searches, all results, and AI match scoring." : "Unlock unlimited searches, all results, Find Best Match, and AI-written essays."}
+        </p>
+        <div style={{ display:"flex",gap:12,marginBottom:16 }}>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$9.99 / month"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$79 / year  (save 34%)"}</button>
+        </div>
+        <button onClick={onClose} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:13 }}>Maybe later</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Agent Card ───────────────────────────────────────────────────────────────
+function AgentCard({ agent, index }) {
+  const [mounted, setMounted] = useState(false);
+  const isError = index === 3;
+  useEffect(() => { const t = setTimeout(()=>setMounted(true),index*120); return ()=>clearTimeout(t); }, []);
+  const c = isError?"#ef4444":"#4ade80";
+  return (
+    <div className="rounded-xl p-4" style={{ opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(16px)",transition:"all 0.5s ease",background:"rgba(255,255,255,0.03)",border:`1px solid ${isError?"rgba(239,68,68,0.25)":"rgba(212,175,55,0.2)"}` }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div style={{ width:32,height:32,borderRadius:8,background:"rgba(212,175,55,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>{agent.icon}</div>
+          <div><div className="text-sm font-semibold text-white">{agent.name}</div><div className="text-xs" style={{ color:"rgba(255,255,255,0.35)" }}>{agent.task}</div></div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div style={{ width:6,height:6,borderRadius:"50%",background:c,boxShadow:`0 0 6px ${c}` }} />
+          <span className="text-xs font-semibold" style={{ color:c }}>{isError?"Failed":"Live"}</span>
+        </div>
+      </div>
+      <div className="rounded-lg" style={{ background:"rgba(0,0,0,0.4)" }}>
+        <div className="flex items-center gap-1.5 px-3 py-1.5" style={{ borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+          {["#ff5f57","#febc2e","#28c840"].map((col,i)=><div key={i} style={{ width:6,height:6,borderRadius:"50%",background:col,opacity:0.7 }} />)}
+          <div className="ml-2 flex-1 h-2 rounded-sm" style={{ background:"rgba(255,255,255,0.07)" }}>
+            {!isError&&<div style={{ width:"72%",height:"100%",borderRadius:2,background:"linear-gradient(90deg,#d4af37,#f5d060)" }} />}
+          </div>
+        </div>
+        <div className="p-3 h-12 flex flex-col gap-1 justify-center">
+          {isError ? <div className="text-xs" style={{ color:"#ef4444" }}>⚠ HTTP 503 — Unavailable</div>
+            : <><div className="text-xs" style={{ color:"#4ade80" }}>✓ Connected · Scanning...</div><div className="text-xs" style={{ color:"rgba(255,255,255,0.25)" }}>Found {32+index*11} candidates</div></>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Match Score Ring ─────────────────────────────────────────────────────────
+function MatchRing({ score }) {
+  const color = score >= 85 ? "#4ade80" : score >= 70 ? "#d4af37" : score >= 55 ? "#fb923c" : "#f87171";
+  const r = 20; const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  return (
+    <div style={{ position:"relative",width:56,height:56,flexShrink:0 }}>
+      <svg width="56" height="56" style={{ transform:"rotate(-90deg)" }}>
+        <circle cx="28" cy="28" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+        <circle cx="28" cy="28" r={r} fill="none" stroke={color} strokeWidth="4" strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{ transition:"stroke-dasharray 1s ease" }} />
+      </svg>
+      <div style={{ position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column" }}>
+        <span style={{ fontSize:12,fontWeight:800,color,lineHeight:1 }}>{score}</span>
+        <span style={{ fontSize:8,color:"rgba(255,255,255,0.4)",lineHeight:1,marginTop:1 }}>%</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Scholarship Card ─────────────────────────────────────────────────────────
+function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
+  const [expanded, setExpanded] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const accent = TYPE_COLORS[s.type] || "#d4af37";
+  const isSaved = savedIds?.has(`${s.name}||${s.institution}`);
+  useEffect(() => { const t = setTimeout(()=>setMounted(true),index*80); return ()=>clearTimeout(t); }, []);
+  const handleSave = async (e) => { e.stopPropagation(); setSaving(true); await onSave(s); setSaving(false); };
+  return (
+    <div onClick={()=>setExpanded(!expanded)} className="rounded-2xl border cursor-pointer overflow-hidden"
+      style={{ opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(24px)",transition:"all 0.5s ease",background:expanded?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",borderColor:expanded?`${accent}40`:"rgba(255,255,255,0.07)",boxShadow:expanded?`0 0 40px ${accent}12`:"none" }}>
+      <div className="p-6">
+        <div className="flex items-start gap-4">
+          {showMatch && s.matchScore && <MatchRing score={s.matchScore} />}
+          <div className="flex-1">
+            <div className="flex flex-wrap gap-2 mb-3">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background:`${accent}15`,color:accent,border:`1px solid ${accent}30` }}>{s.type}</span>
+              <span className="text-xs px-2.5 py-1 rounded-full" style={{ background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.45)",border:"1px solid rgba(255,255,255,0.1)" }}>📍 {s.region}</span>
+              {s.deadline&&<span className="text-xs px-2.5 py-1 rounded-full" style={{ background:"rgba(239,68,68,0.1)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)" }}>⏰ {s.deadline}</span>}
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-display text-lg font-bold text-white mb-1 leading-tight">{s.name}</h3>
+                <p className="text-sm" style={{ color:"rgba(255,255,255,0.4)" }}>{s.institution}</p>
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className="font-display text-2xl font-black" style={{ color:accent }}>{s.amount}</div>
+                <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ background:isSaved?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.06)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",cursor:"pointer" }}>
+                  {saving?"...":(isSaved?"★ Saved":"☆ Save")}
+                </button>
+              </div>
+            </div>
+            <p className="text-sm mt-3 leading-relaxed" style={{ color:"rgba(255,255,255,0.5)" }}>{s.description}</p>
+            {showMatch && s.matchReason && (
+              <div className="mt-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.15)" }}>
+                <span style={{ fontSize:12,marginTop:1 }}>✦</span>
+                <p className="text-xs leading-relaxed" style={{ color:"rgba(74,222,128,0.9)" }}>{s.matchReason}</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-4 flex items-center gap-1.5" style={{ color:accent }}>
+          <span className="text-xs font-semibold">{expanded?"Hide details":"View details & apply"}</span>
+          <span className="text-xs" style={{ display:"inline-block",transform:expanded?"rotate(180deg)":"none",transition:"transform 0.3s" }}>▼</span>
+        </div>
+      </div>
+      {expanded && (
+        <div className="px-6 pb-6 pt-2" style={{ borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            {[{label:"Eligibility",val:s.eligibility},{label:"GPA Required",val:s.gpa},{label:"Opens",val:s.opens},{label:"Source",val:s.source}].map(item=>(
+              <div key={item.label}><div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"rgba(255,255,255,0.25)" }}>{item.label}</div><div className="text-sm font-medium text-white">{item.val||"—"}</div></div>
+            ))}
+          </div>
+          <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold hover:opacity-80 transition-opacity" style={{ background:accent,color:"#0a0f1e" }}>Apply Now →</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Blur Gate ────────────────────────────────────────────────────────────────
+function BlurGate({ onUpgrade, loading }) {
+  return (
+    <div className="relative rounded-2xl overflow-hidden mt-4" style={{ border:"1px solid rgba(212,175,55,0.25)" }}>
+      <div className="absolute inset-0 z-10" style={{ background:"linear-gradient(to bottom,rgba(6,11,24,0) 0%,rgba(6,11,24,0.7) 35%,rgba(6,11,24,0.98) 65%)",pointerEvents:"none" }} />
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-10 px-6 text-center">
+        <div style={{ width:48,height:48,borderRadius:"50%",background:"rgba(212,175,55,0.15)",border:"1px solid rgba(212,175,55,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,marginBottom:16 }}>🔒</div>
+        <h3 className="font-display text-2xl font-bold text-white mb-2">5 more scholarships found</h3>
+        <p className="text-sm mb-6 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results plus unlimited searches and personalised match scoring.</p>
+        <div className="flex gap-3 mb-4 w-full max-w-xs">
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$9.99 / mo"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$79 / yr · Save 34%"}</button>
+        </div>
+        <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure payment via Stripe</p>
+      </div>
+      <div className="p-4 flex flex-col gap-3" style={{ pointerEvents:"none" }}>
+        {[1,2,3].map(i=>(
+          <div key={i} className="rounded-xl p-5" style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",filter:"blur(3px)" }}>
+            <div className="flex justify-between items-start mb-3">
+              <div><div style={{ height:12,width:96,borderRadius:4,background:"rgba(212,175,55,0.3)",marginBottom:8 }} /><div style={{ height:20,width:208,borderRadius:4,background:"rgba(255,255,255,0.15)",marginBottom:4 }} /><div style={{ height:12,width:144,borderRadius:4,background:"rgba(255,255,255,0.08)" }} /></div>
+              <div style={{ height:28,width:80,borderRadius:6,background:"rgba(212,175,55,0.25)" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Scholar Profile Questionnaire ───────────────────────────────────────────
+const STEPS = [
+  { id:"academic", label:"Academic", icon:"🎓", title:"Academic Background", fields:[
+    { key:"studyLevel", label:"Study Level", type:"select", required:true, options:["Undergraduate","Graduate / Masters","PhD / Doctoral","High School","Vocational / TAFE"] },
+    { key:"fieldOfStudy", label:"Field of Study", type:"text", required:true, placeholder:"e.g. Computer Science, Medicine, Law" },
+    { key:"university", label:"University (if enrolled)", type:"text", placeholder:"e.g. Monash University, University of Melbourne" },
+    { key:"gpa", label:"GPA / Academic Score", type:"text", placeholder:"e.g. 3.8 / 4.0  or  85 WAM  or  Distinction average" },
+  ]},
+  { id:"personal", label:"Personal", icon:"🌍", title:"Personal Details", fields:[
+    { key:"nationality", label:"Nationality / Citizenship", type:"text", required:true, placeholder:"e.g. Australian, Indian, Nigerian" },
+    { key:"studyCountry", label:"Country You're Studying In", type:"text", required:true, placeholder:"e.g. Australia, United States, UK" },
+    { key:"financialNeed", label:"Financial Need", type:"select", required:true, options:["No financial need","Some financial need","Significant financial need","Prefer not to say"] },
+    { key:"demographics", label:"Demographic Background (optional)", type:"text", placeholder:"e.g. First-generation student, Indigenous, Women in STEM, LGBTQ+" },
+  ]},
+  { id:"goals", label:"Goals", icon:"✦", title:"Achievements & Goals", fields:[
+    { key:"achievements", label:"Extracurriculars & Achievements", type:"textarea", placeholder:"e.g. Debate captain, published research, community volunteer, startup founder..." },
+    { key:"careerGoals", label:"Career Goals", type:"textarea", placeholder:"e.g. Become a climate scientist, found a tech startup, practice international law..." },
+  ]},
+];
+
+function ScholarProfileForm({ existing, onSubmit, onCancel, loading }) {
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState(existing || {});
+  const [errors, setErrors] = useState({});
+
+  const currentStep = STEPS[step];
+  const set = (key, val) => { setForm(f=>({...f,[key]:val})); setErrors(e=>({...e,[key]:""})); };
+
+  const validate = () => {
+    const errs = {};
+    currentStep.fields.forEach(f => { if (f.required && !form[f.key]?.trim()) errs[f.key] = "This field is required"; });
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const next = () => { if (validate()) setStep(s=>s+1); };
+  const back = () => setStep(s=>s-1);
+  const submit = () => { if (validate()) onSubmit(form); };
+
+  const inp = (extra={}) => ({ width:"100%",padding:"12px 16px",borderRadius:10,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box",...extra });
+
+  return (
+    <div>
+      {/* Step indicators */}
+      <div className="flex items-center gap-3 mb-8">
+        {STEPS.map((s,i) => (
+          <div key={s.id} className="flex items-center gap-2">
+            <div style={{ width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,
+              background:i<step?"rgba(74,222,128,0.2)":i===step?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.05)",
+              border:`2px solid ${i<step?"#4ade80":i===step?"#d4af37":"rgba(255,255,255,0.1)"}`,
+              color:i<step?"#4ade80":i===step?"#d4af37":"rgba(255,255,255,0.3)" }}>
+              {i<step?"✓":s.icon}
+            </div>
+            <span className="text-xs font-semibold hidden sm:block" style={{ color:i===step?"#d4af37":"rgba(255,255,255,0.3)" }}>{s.label}</span>
+            {i<STEPS.length-1 && <div style={{ width:24,height:1,background:i<step?"rgba(74,222,128,0.4)":"rgba(255,255,255,0.1)",marginLeft:4 }} />}
+          </div>
+        ))}
+      </div>
+
+      <h3 className="font-display text-xl font-bold text-white mb-6">{currentStep.title}</h3>
+
+      <div className="flex flex-col gap-5">
+        {currentStep.fields.map(field => (
+          <div key={field.key}>
+            <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.4)" }}>
+              {field.label}{field.required&&<span style={{ color:"#d4af37" }}> *</span>}
+            </label>
+            {field.type==="select" ? (
+              <select value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} style={{ ...inp(), appearance:"none" }}>
+                <option value="">Select...</option>
+                {field.options.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+            ) : field.type==="textarea" ? (
+              <textarea value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} rows={3}
+                style={{ ...inp(),resize:"vertical",fontFamily:"inherit" }} />
+            ) : (
+              <input type="text" value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} style={inp()}
+                onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} />
+            )}
+            {errors[field.key] && <p style={{ color:"#fca5a5",fontSize:12,marginTop:4 }}>{errors[field.key]}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex gap-3 mt-8">
+        {step > 0 && <button onClick={back} style={{ flex:1,padding:13,borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:14,fontWeight:600,cursor:"pointer" }}>← Back</button>}
+        {onCancel && step===0 && <button onClick={onCancel} style={{ flex:1,padding:13,borderRadius:12,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.4)",fontSize:14,cursor:"pointer" }}>Cancel</button>}
+        {step < STEPS.length-1
+          ? <button onClick={next} style={{ flex:2,padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:14,fontWeight:700,cursor:"pointer" }}>Continue →</button>
+          : <button onClick={submit} disabled={loading} style={{ flex:2,padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1 }}>{loading?"Finding your matches...":"✦ Find My Best Matches"}</button>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─── Profile Page ─────────────────────────────────────────────────────────────
+function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
+  const [tab, setTab] = useState("searches");
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [savedIds, setSavedIds] = useState(new Set());
+  const [matchPhase, setMatchPhase] = useState("idle"); // idle | form | searching | results
+  const [matchResults, setMatchResults] = useState([]);
+  const [matchError, setMatchError] = useState("");
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [matchMsg, setMatchMsg] = useState("");
+  const msgIdx = useRef(0); const intervalRef = useRef(null);
+
+  useEffect(() => {
+    api("/api/profile").then(r=>r.json()).then(data => {
+      setProfile(data);
+      setSavedIds(new Set((data.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSave = async (scholarship) => {
+    const res = await api("/api/scholarships/save",{ method:"POST",body:JSON.stringify({scholarship}) });
+    const data = await res.json();
+    setSavedIds(new Set((data.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
+    setProfile(p=>({...p,savedScholarships:data.savedScholarships}));
+    if (onUserUpdate) onUserUpdate({ savedScholarships: data.savedScholarships });
+  };
+
+  const runMatch = async (scholarProfile) => {
+    setMatchLoading(true); setMatchError("");
+    setMatchPhase("searching"); setMatchMsg(MATCH_MSGS[0]);
+    msgIdx.current=0;
+    intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%MATCH_MSGS.length; setMatchMsg(MATCH_MSGS[msgIdx.current]); },2000);
+    try {
+      const res = await api("/api/match",{ method:"POST",body:JSON.stringify({scholarProfile}) });
+      const data = await res.json();
+      if (!res.ok) { if (data.error==="PRO_REQUIRED") { setMatchPhase("idle"); onUpgrade&&onUpgrade("monthly"); return; } throw new Error(data.error||data.message); }
+      setMatchResults(data.scholarships||[]);
+      setMatchPhase("results");
+    } catch(e) { setMatchError(e.message); setMatchPhase("form"); }
+    finally { clearInterval(intervalRef.current); setMatchLoading(false); }
+  };
+
+  const tabStyle = (t) => ({ padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:"none",background:tab===t?"rgba(212,175,55,0.15)":"transparent",color:tab===t?"#d4af37":"rgba(255,255,255,0.4)",borderBottom:tab===t?"2px solid #d4af37":"2px solid transparent" });
+
+  return (
+    <div className="animate-fade-up">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <button onClick={onBack} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13,marginBottom:8,padding:0 }}>← Back to search</button>
+          <h2 className="font-display text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>My Profile</h2>
+          <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.4)" }}>{user.email}</p>
+        </div>
+        {user.isPro
+          ? <div className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>✦ Pro Member</div>
+          : <button onClick={()=>onUpgrade("monthly")} disabled={stripeLoading} className="gold-btn px-4 py-2 rounded-xl text-xs font-bold">Upgrade to Pro</button>}
+      </div>
+
+      {!loading && profile && (
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {[
+            { label:"Searches Used", value:profile.searchCount, sub:user.isPro?"Unlimited":`of ${profile.searchLimit} free` },
+            { label:"Saved Scholarships", value:profile.savedScholarships?.length||0, sub:"across all searches" },
+            { label:"Account Type", value:user.isPro?"Pro ✦":"Free", sub:user.isPro?"All features unlocked":"1 free search" },
+          ].map(stat=>(
+            <div key={stat.label} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
+              <div className="font-display text-3xl font-black mb-1" style={{ color:"#d4af37" }}>{stat.value}</div>
+              <div className="text-sm font-semibold text-white mb-0.5">{stat.label}</div>
+              <div className="text-xs" style={{ color:"rgba(255,255,255,0.35)" }}>{stat.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",width:"fit-content" }}>
+        <button style={tabStyle("searches")} onClick={()=>setTab("searches")}>🕐 Recent Searches</button>
+        <button style={tabStyle("saved")} onClick={()=>setTab("saved")}>★ Saved</button>
+        <button style={tabStyle("discover")} onClick={()=>{setTab("discover");if(matchPhase==="idle"&&!profile?.user?.scholarProfile)setMatchPhase("form");}}>✦ Best Match</button>
+      </div>
+
+      {loading ? <div style={{ color:"rgba(255,255,255,0.3)",fontSize:14,padding:"40px 0",textAlign:"center" }}>Loading...</div> : (
+        <>
+          {/* Recent Searches */}
+          {tab==="searches" && (
+            !profile.recentSearches?.length
+              ? <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}><div style={{ fontSize:32,marginBottom:12 }}>🔍</div><p style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>No searches yet.</p></div>
+              : <div className="flex flex-col gap-4">
+                  {profile.recentSearches.map((search,i)=>(
+                    <div key={i} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {search.isBestMatch && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background:"rgba(212,175,55,0.15)",color:"#d4af37",border:"1px solid rgba(212,175,55,0.3)" }}>✦ Best Match</span>}
+                            {search.query.type&&!search.isBestMatch&&<span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background:"rgba(212,175,55,0.1)",color:"#d4af37" }}>{search.query.type}</span>}
+                            {search.query.university&&<span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.5)" }}>🎓 {search.query.university}</span>}
+                            {search.query.region&&<span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.5)" }}>📍 {search.query.region}</span>}
+                          </div>
+                          <p className="text-xs" style={{ color:"rgba(255,255,255,0.25)" }}>{new Date(search.searchedAt).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</p>
+                        </div>
+                        <div className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background:"rgba(74,222,128,0.1)",color:"#4ade80",border:"1px solid rgba(74,222,128,0.2)" }}>{search.results?.length||0} results</div>
+                      </div>
+                      <div className="flex flex-col gap-2 mt-3">
+                        {(search.results||[]).slice(0,3).map((s,j)=>(
+                          <div key={j} className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)" }}>
+                            <div><div className="text-sm font-semibold text-white">{s.name}</div><div className="text-xs" style={{ color:"rgba(255,255,255,0.35)" }}>{s.institution}</div></div>
+                            <div className="flex items-center gap-3">
+                              {s.matchScore&&<span className="text-xs font-bold" style={{ color:"#4ade80" }}>{s.matchScore}% match</span>}
+                              <span className="font-display text-sm font-bold" style={{ color:TYPE_COLORS[s.type]||"#d4af37" }}>{s.amount}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {(search.results||[]).length>3&&<p className="text-xs text-center mt-1" style={{ color:"rgba(255,255,255,0.25)" }}>+{search.results.length-3} more results</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+          )}
+
+          {/* Saved */}
+          {tab==="saved" && (
+            !profile.savedScholarships?.length
+              ? <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}><div style={{ fontSize:32,marginBottom:12 }}>★</div><p style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>No saved scholarships yet.</p></div>
+              : <div className="flex flex-col gap-4">{profile.savedScholarships.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={!!s.matchScore} />)}</div>
+          )}
+
+          {/* Best Match */}
+          {tab==="discover" && (
+            <div>
+              {!user.isPro && (
+                <div className="rounded-2xl p-8 text-center mb-6" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.2)" }}>
+                  <div style={{ fontSize:32,marginBottom:12 }}>✦</div>
+                  <h3 className="font-display text-xl font-bold text-white mb-2">Pro Feature</h3>
+                  <p className="text-sm mb-5" style={{ color:"rgba(255,255,255,0.45)",maxWidth:320,margin:"0 auto 20px" }}>Find Best Match uses AI to rank scholarships by your personal win probability. Upgrade to unlock.</p>
+                  <button onClick={()=>onUpgrade("monthly")} disabled={stripeLoading} className="gold-btn px-6 py-3 rounded-xl text-sm font-bold">{stripeLoading?"...":"Upgrade to Pro"}</button>
+                </div>
+              )}
+
+              {user.isPro && matchPhase==="idle" && (
+                <div className="rounded-2xl p-8" style={{ background:"rgba(212,175,55,0.04)",border:"1px solid rgba(212,175,55,0.15)" }}>
+                  <div style={{ fontSize:32,marginBottom:16 }}>✦</div>
+                  <h3 className="font-display text-2xl font-bold text-white mb-2">Find Your Best Match</h3>
+                  <p className="text-sm mb-6" style={{ color:"rgba(255,255,255,0.5)",lineHeight:1.7 }}>Tell us about yourself and our AI will analyse thousands of scholarships, ranking them by how likely you are to qualify and win.</p>
+                  <button onClick={()=>setMatchPhase("form")} className="gold-btn px-6 py-3 rounded-xl text-sm font-bold">Get Started →</button>
+                  {profile?.user?.scholarProfile && (
+                    <button onClick={()=>runMatch(profile.user.scholarProfile)} style={{ marginLeft:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.6)",padding:"12px 20px",borderRadius:12,fontSize:13,cursor:"pointer",fontWeight:600 }}>
+                      Re-run with saved profile
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {user.isPro && matchPhase==="form" && (
+                <div className="rounded-2xl p-8" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)" }}>
+                  {matchError && <div style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5",padding:"10px 14px",borderRadius:10,fontSize:13,marginBottom:20 }}>{matchError}</div>}
+                  <ScholarProfileForm existing={profile?.user?.scholarProfile} onSubmit={runMatch} onCancel={()=>setMatchPhase("idle")} loading={matchLoading} />
+                </div>
+              )}
+
+              {user.isPro && matchPhase==="searching" && (
+                <div className="text-center py-16">
+                  <div style={{ width:64,height:64,borderRadius:20,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 24px",animation:"spin 3s linear infinite" }}>✦</div>
+                  <h3 className="font-display text-2xl font-black text-white mb-2">Analysing Your Profile</h3>
+                  <p className="text-sm font-medium mb-8" style={{ color:"#d4af37" }}>{matchMsg}</p>
+                  <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
+                    {AGENT_SOURCES.map((a,i)=><div key={i} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(212,175,55,0.1)" }}><span>{a.icon}</span><span className="text-xs" style={{ color:"rgba(255,255,255,0.5)" }}>{a.name}</span><div style={{ marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:"#4ade80",animation:"pulse-dot 1.5s infinite" }} /></div>)}
+                  </div>
+                </div>
+              )}
+
+              {user.isPro && matchPhase==="results" && (
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"#d4af37" }}>✦ Best Match Results</div>
+                      <h3 className="font-display text-2xl font-black text-white">Your Top {matchResults.length} Scholarships</h3>
+                      <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.4)" }}>Ranked by personal match score · AI analysed</p>
+                    </div>
+                    <button onClick={()=>setMatchPhase("form")} style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",padding:"10px 16px",borderRadius:12,fontSize:13,cursor:"pointer",fontWeight:600 }}>↻ Refine Profile</button>
+                  </div>
+                  {/* Score legend */}
+                  <div className="flex gap-4 mb-6 flex-wrap">
+                    {[["90–100","#4ade80","Exceptional fit"],["70–89","#d4af37","Strong fit"],["55–69","#fb923c","Good fit"],["<55","#f87171","Partial fit"]].map(([range,color,label])=>(
+                      <div key={range} className="flex items-center gap-2"><div style={{ width:10,height:10,borderRadius:"50%",background:color }} /><span className="text-xs" style={{ color:"rgba(255,255,255,0.4)" }}><span style={{ color:"white",fontWeight:600 }}>{range}</span> — {label}</span></div>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    {matchResults.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} />)}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
+  const [page, setPage] = useState("home");
+  const [type, setType] = useState(""); const [university, setUniversity] = useState(""); const [region, setRegion] = useState("");
+  const [phase, setPhase] = useState("idle");
+  const [loadingMsg, setLoadingMsg] = useState("");
+  const [results, setResults] = useState([]);
+  const [error, setError] = useState("");
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [savedIds, setSavedIds] = useState(new Set());
+  const intervalRef = useRef(null); const msgIdx = useRef(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem("scholar_token");
+    if (token) {
+      api("/api/auth/me").then(r=>r.json()).then(data => {
+        if (data.user) { setUser(data.user); setSavedIds(new Set((data.user.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`))); }
+        else localStorage.removeItem("scholar_token");
+      }).catch(()=>localStorage.removeItem("scholar_token")).finally(()=>setAuthReady(true));
+    } else setAuthReady(true);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    if (sessionId && params.get("paid")==="true") {
+      api(`/api/verify-session/${sessionId}`).then(r=>r.json()).then(data => { if (data.user) setUser(data.user); window.history.replaceState({},"","/"); }).catch(console.error);
+    }
+  }, []);
+
+  const handleAuth = (u) => { setUser(u); setShowAuth(false); };
+  const logout = () => { localStorage.removeItem("scholar_token"); setUser(null); setPhase("idle"); setResults([]); setPage("home"); };
+
+  const handleSave = async (scholarship) => {
+    if (!user) return setShowAuth(true);
+    const res = await api("/api/scholarships/save",{ method:"POST",body:JSON.stringify({scholarship}) });
+    const data = await res.json();
+    setSavedIds(new Set((data.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
+    setUser(u=>({...u,savedScholarships:data.savedScholarships}));
+  };
+
+  const search = async () => {
+    if (!user) return setShowAuth(true);
+    if (!university.trim()&&!region.trim()) return setError("Please enter at least a university or region.");
+    setError(""); setPhase("searching"); setResults([]);
+    msgIdx.current=0; setLoadingMsg(LOADING_MSGS[0]);
+    intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%LOADING_MSGS.length; setLoadingMsg(LOADING_MSGS[msgIdx.current]); },1800);
+    try {
+      const res = await api("/api/search",{ method:"POST",body:JSON.stringify({type,university,region}) });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error==="FREE_LIMIT_REACHED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return; }
+        throw new Error(data.error||data.message);
+      }
+      setResults(data.scholarships||[]);
+      setUser(u=>({...u,searchCount:(u.searchCount||0)+1}));
+    } catch(e) { setError(e.message); }
+    finally { clearInterval(intervalRef.current); setPhase(p=>p==="searching"?"results":p); }
+  };
+
+  const handleUpgrade = async (plan) => {
+    if (!user) return setShowAuth(true);
+    setStripeLoading(true); setShowUpgrade(false);
+    try {
+      const res = await api("/api/create-checkout",{ method:"POST",body:JSON.stringify({plan}) });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url; else throw new Error(data.error);
+    } catch(e) { alert("Payment error: "+e.message); }
+    finally { setStripeLoading(false); }
+  };
+
+  const reset = () => { setPhase("idle"); setResults([]); setError(""); };
+
+  if (!authReady) return <div style={{ minHeight:"100vh",background:"linear-gradient(135deg,#060b18,#0a1628)",display:"flex",alignItems:"center",justifyContent:"center" }}><div style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>Loading...</div></div>;
+
+  return (
+    <div className="min-h-screen" style={{ background:"linear-gradient(135deg,#060b18 0%,#0a1628 50%,#060d1f 100%)" }}>
+      {showAuth && <AuthModal onAuth={handleAuth} />}
+      {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
+
+      {/* Nav */}
+      <nav className="flex items-center justify-between px-8 py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center gap-3 cursor-pointer" onClick={()=>{reset();setPage("home");}}>
+          <div style={{ width:36,height:36,borderRadius:12,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>S</div>
+          <div>
+            <div className="font-display font-bold text-white text-base" style={{ letterSpacing:"-0.02em" }}>ScholarAI</div>
+            <div className="text-xs font-semibold" style={{ color:"#d4af37",letterSpacing:"0.1em" }}>GLOBAL DISCOVERY</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <>
+              {user.isPro&&<div className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>✦ Pro</div>}
+              {phase!=="idle"&&page==="home"&&<button onClick={reset} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13 }}>← New Search</button>}
+              <button onClick={()=>setPage(page==="profile"?"home":"profile")} style={{ background:page==="profile"?"rgba(212,175,55,0.1)":"rgba(255,255,255,0.05)",border:`1px solid ${page==="profile"?"rgba(212,175,55,0.3)":"rgba(255,255,255,0.08)"}`,color:page==="profile"?"#d4af37":"rgba(255,255,255,0.5)",padding:"8px 14px",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:500 }}>
+                👤 {user.email.split("@")[0]}
+              </button>
+              {!user.isPro&&<button onClick={()=>{setUpgradeReason("general");setShowUpgrade(true);}} disabled={stripeLoading} className="gold-btn px-4 py-2 rounded-xl text-xs font-bold">Upgrade to Pro</button>}
+              <button onClick={logout} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.3)",padding:"8px 14px",borderRadius:10,cursor:"pointer",fontSize:12 }}>Sign out</button>
+            </>
+          ) : (
+            <>
+              <button onClick={()=>setShowAuth(true)} style={{ background:"none",border:"1px solid rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.6)",padding:"8px 16px",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:500 }}>Sign in</button>
+              <button onClick={()=>setShowAuth(true)} className="gold-btn px-4 py-2 rounded-xl text-xs font-bold">Get Started Free</button>
+            </>
+          )}
+        </div>
+      </nav>
+
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        {page==="profile"&&user && (
+          <ProfilePage user={user} onBack={()=>setPage("home")} onUpgrade={handleUpgrade} stripeLoading={stripeLoading} onUserUpdate={(updates)=>setUser(u=>({...u,...updates}))} />
+        )}
+
+        {page==="home" && (
+          <>
+            {phase==="idle" && (
+              <div className="animate-fade-up">
+                <div className="text-center mb-14">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold tracking-widest uppercase" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>✦ &nbsp;6 agents · 40+ sources · worldwide</div>
+                  <h1 className="font-display font-black text-white mb-5 leading-none" style={{ fontSize:"clamp(38px,7vw,68px)",letterSpacing:"-0.03em" }}>Find scholarships<br /><span className="shimmer-text">the world over.</span></h1>
+                  <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
+                </div>
+                <div className="rounded-2xl p-8 glass-card">
+                  <div className="grid grid-cols-2 gap-5 mb-5">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>Scholarship Type</label>
+                      <select value={type} onChange={e=>setType(e.target.value)} className="w-full rounded-xl px-4 py-3.5 text-sm" style={{ appearance:"none" }}><option value="">Any type (optional)</option>{SCHOLARSHIP_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>University</label>
+                      <input value={university} onChange={e=>setUniversity(e.target.value)} placeholder="e.g. Monash, Oxford, MIT" className="w-full rounded-xl px-4 py-3.5 text-sm" />
+                    </div>
+                  </div>
+                  <div className="mb-6">
+                    <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>Region / Country</label>
+                    <input value={region} onChange={e=>setRegion(e.target.value)} placeholder="e.g. Australia, USA, Europe, India" className="w-full rounded-xl px-4 py-3.5 text-sm" onKeyDown={e=>e.key==="Enter"&&search()} />
+                  </div>
+                  {error&&<div className="mb-4 rounded-xl px-4 py-3 text-sm" style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>}
+                  {user&&!user.isPro&&(user.searchCount||0)>=1&&(
+                    <div className="mb-4 rounded-xl px-4 py-3 text-sm flex items-center justify-between" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>
+                      <span>⚠ Free search used. Upgrade for unlimited searches.</span>
+                      <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",border:"none",color:"#0a0f1e",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer" }}>Upgrade</button>
+                    </div>
+                  )}
+                  <button onClick={search} className="w-full gold-btn rounded-xl py-4 text-base font-bold">{user?"Deploy Agents · Search Scholarships":"Sign In to Search"}</button>
+                  <p className="text-center text-xs mt-4" style={{ color:"rgba(255,255,255,0.2)" }}>
+                    {user ? (user.isPro?"Unlimited searches · All results unlocked":`${1-(user.searchCount||0)} free search remaining`) : "Free account required · No credit card needed"}
+                  </p>
+                </div>
+
+                {/* Feature cards */}
+                <div className="grid grid-cols-3 gap-4 mt-8">
+                  {[
+                    { icon:"🔍",title:"Smart Search",desc:"Search by type, university or region across 40+ global sources." },
+                    { icon:"✦",title:"Best Match",desc:"AI ranks scholarships by your personal win probability. Pro feature." },
+                    { icon:"★",title:"Save & Track",desc:"Bookmark scholarships and revisit your search history anytime." },
+                  ].map(f=>(
+                    <div key={f.title} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ fontSize:24,marginBottom:10 }}>{f.icon}</div>
+                      <div className="text-sm font-bold text-white mb-1">{f.title}</div>
+                      <div className="text-xs leading-relaxed" style={{ color:"rgba(255,255,255,0.35)" }}>{f.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {phase==="searching" && (
+              <div className="animate-fade-up">
+                <div className="text-center mb-10">
+                  <div style={{ width:56,height:56,borderRadius:16,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 20px",animation:"spin 3s linear infinite" }}>◎</div>
+                  <h2 className="font-display text-2xl font-black text-white mb-2">Agents Deployed</h2>
+                  <p className="text-sm font-medium" style={{ color:"#d4af37" }}>{loadingMsg}</p>
+                </div>
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.35)" }}>Active Agents ({AGENT_SOURCES.length})</h3>
+                  <div className="flex items-center gap-2"><div style={{ width:6,height:6,borderRadius:"50%",background:"#d4af37",animation:"pulse-dot 1.5s infinite" }} /><span className="text-xs font-semibold" style={{ color:"#d4af37" }}>Searching in parallel</span></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">{AGENT_SOURCES.map((a,i)=><AgentCard key={i} agent={a} index={i} />)}</div>
+              </div>
+            )}
+
+            {phase==="results" && (
+              <div className="animate-fade-up">
+                {error
+                  ? <div className="rounded-2xl p-6 text-sm" style={{ background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>
+                  : <>
+                      <div className="flex items-center justify-between mb-8">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"#d4af37" }}>Search complete</div>
+                          <h2 className="font-display text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Scholarships Found</h2>
+                          <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
+                        </div>
+                        <div className="text-xs font-bold px-4 py-2 rounded-xl" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
+                      </div>
+                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={false} />)}</div>
+                      {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} />
+                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={false} /></div>)}
+                      <div className="mt-10 rounded-2xl p-6 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
+                        <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
+                        <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ &nbsp;New Search</button>
+                      </div>
+                    </>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
