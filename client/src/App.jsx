@@ -16,7 +16,7 @@ const FREE_LIMIT = 3;
 const API_BASE = import.meta.env.VITE_API_URL || "https://scholarai-production-3cd2.up.railway.app";
 
 function api(path, options = {}) {
-  const token = localStorage.getItem("scholar_token");
+  const token = localStorage.getItem("kaloma_token");
   return fetch(`${API_BASE}${path}`, { ...options, headers: { "Content-Type":"application/json", ...(token ? { Authorization:`Bearer ${token}` } : {}), ...options.headers } });
 }
 
@@ -32,7 +32,7 @@ function AuthModal({ onAuth }) {
     try {
       const res = await fetch(`${API_BASE}/api/auth/${mode}`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email,password}) });
       const data = await res.json(); if (!res.ok) throw new Error(data.error);
-      localStorage.setItem("scholar_token", data.token); onAuth(data.user);
+      localStorage.setItem("kaloma_token", data.token); onAuth(data.user);
     } catch(e) { setError(e.message); } finally { setLoading(false); }
   };
   return (
@@ -41,7 +41,7 @@ function AuthModal({ onAuth }) {
         <div style={{ textAlign:"center",marginBottom:32 }}>
           <div style={{ width:48,height:48,borderRadius:14,margin:"0 auto 12px",background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>S</div>
           <h2 style={{ margin:0,fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:"white" }}>{mode==="login"?"Welcome back":"Create account"}</h2>
-          <p style={{ margin:"6px 0 0",fontSize:13,color:"rgba(255,255,255,0.4)" }}>{mode==="login"?"Sign in to continue":"Start finding scholarships worldwide"}</p>
+          <p style={{ margin:"6px 0 0",fontSize:13,color:"rgba(255,255,255,0.4)" }}>{mode==="login"?"Sign in to continue":"Discover funding opportunities worldwide"}</p>
         </div>
         <div style={{ display:"flex",flexDirection:"column",gap:12,marginBottom:16 }}>
           <input type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)} style={inp} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} onKeyDown={e=>e.key==="Enter"&&submit()} />
@@ -535,12 +535,12 @@ export default function App() {
   const intervalRef = useRef(null); const msgIdx = useRef(0);
 
   useEffect(() => {
-    const token = localStorage.getItem("scholar_token");
+    const token = localStorage.getItem("kaloma_token");
     if (token) {
       api("/api/auth/me").then(r=>r.json()).then(data => {
         if (data.user) { setUser(data.user); setSavedIds(new Set((data.user.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`))); }
-        else localStorage.removeItem("scholar_token");
-      }).catch(()=>localStorage.removeItem("scholar_token")).finally(()=>setAuthReady(true));
+        else localStorage.removeItem("kaloma_token");
+      }).catch(()=>localStorage.removeItem("kaloma_token")).finally(()=>setAuthReady(true));
     } else setAuthReady(true);
   }, []);
 
@@ -553,7 +553,7 @@ export default function App() {
   }, []);
 
   const handleAuth = (u) => { setUser(u); setShowAuth(false); };
-  const logout = () => { localStorage.removeItem("scholar_token"); setUser(null); setPhase("idle"); setResults([]); setPage("home"); };
+  const logout = () => { localStorage.removeItem("kaloma_token"); setUser(null); setPhase("idle"); setResults([]); setPage("home"); };
 
   const handleSave = async (scholarship) => {
     if (!user) return setShowAuth(true);
@@ -607,7 +607,7 @@ export default function App() {
         <div className="flex items-center gap-3 cursor-pointer" onClick={()=>{reset();setPage("home");}}>
           <div style={{ width:36,height:36,borderRadius:12,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>S</div>
           <div>
-            <div className="font-display font-bold text-white text-base" style={{ letterSpacing:"-0.02em" }}>ScholarAI</div>
+            <div className="font-display font-bold text-white text-base" style={{ letterSpacing:"-0.02em" }}>Kaloma</div>
             <div className="text-xs font-semibold" style={{ color:"#d4af37",letterSpacing:"0.1em" }}>GLOBAL DISCOVERY</div>
           </div>
         </div>
@@ -642,7 +642,7 @@ export default function App() {
               <div className="animate-fade-up">
                 <div className="text-center mb-14">
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold tracking-widest uppercase" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>✦ &nbsp;6 agents · 40+ sources · worldwide</div>
-                  <h1 className="font-display font-black text-white mb-5 leading-none" style={{ fontSize:"clamp(38px,7vw,68px)",letterSpacing:"-0.03em" }}>Find scholarships<br /><span className="shimmer-text">the world over.</span></h1>
+                  <h1 className="font-display font-black text-white mb-5 leading-none" style={{ fontSize:"clamp(38px,7vw,68px)",letterSpacing:"-0.03em" }}>Discover your funding<br /><span className="shimmer-text">the world over.</span></h1>
                   <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
                 </div>
                 <div className="rounded-2xl p-8 glass-card">
