@@ -13,7 +13,7 @@ const LOADING_MSGS = ["Deploying 6 AI agents worldwide...","Scanning university 
 const MATCH_MSGS = ["Analysing your academic profile...","Matching against 10,000+ scholarships...","Scoring eligibility fit...","Ranking by win probability...","Personalising your results...","Finalising your match report..."];
 const TYPE_COLORS = { "Merit-Based":"#d4af37","Need-Based":"#60a5fa","STEM / Engineering":"#34d399","Research":"#a78bfa","Government / National":"#f87171","International Students":"#fb923c","Graduate / Postgraduate":"#e879f9","Women in STEM":"#f472b6" };
 const FREE_LIMIT = 3;
-const API_BASE = "https://scholarai-production-3cd2.up.railway.app";
+const API_BASE = import.meta.env.VITE_API_URL || "https://scholarai-production-3cd2.up.railway.app";
 
 function api(path, options = {}) {
   const token = localStorage.getItem("scholar_token");
@@ -30,7 +30,7 @@ function AuthModal({ onAuth }) {
     setError(""); if (!email||!password) return setError("Please fill in all fields");
     setLoading(true);
     try {
-      const res = await fetch(`/api/auth/${mode}`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email,password}) });
+      const res = await fetch(`${API_BASE}/api/auth/${mode}`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email,password}) });
       const data = await res.json(); if (!res.ok) throw new Error(data.error);
       localStorage.setItem("scholar_token", data.token); onAuth(data.user);
     } catch(e) { setError(e.message); } finally { setLoading(false); }
