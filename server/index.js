@@ -55,7 +55,21 @@ app.post("/api/webhook", express.raw({ type: "application/json" }), async (req, 
 });
 
 app.use(express.json());
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173" }));
+app.use(cors({ 
+  origin: (origin, callback) => {
+    const allowed = [
+      process.env.CLIENT_URL,
+      "http://localhost:5173",
+      "https://precious-intuition-production.up.railway.app"
+    ].filter(Boolean).map(u => u.replace(/\/$/, ""));
+    if (!origin || allowed.includes((origin || "").replace(/\/$/, ""))) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
+}));
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
