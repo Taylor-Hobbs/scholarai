@@ -60,7 +60,9 @@ app.use(cors({
     const allowed = [
       process.env.CLIENT_URL,
       "http://localhost:5173",
-      "https://precious-intuition-production.up.railway.app"
+      "https://precious-intuition-production.up.railway.app",
+      "https://www.kaloma.app",
+      "https://kaloma.app"
     ].filter(Boolean).map(u => u.replace(/\/$/, ""));
     if (!origin || allowed.includes((origin || "").replace(/\/$/, ""))) {
       callback(null, true);
