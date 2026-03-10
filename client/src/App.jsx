@@ -181,7 +181,7 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
       </div>
       {expanded && (
         <div className="px-6 pb-6 pt-2" style={{ borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div className="grid grid-cols-2 gap-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
             {[{label:"Eligibility",val:s.eligibility},{label:"GPA Required",val:s.gpa},{label:"Opens",val:s.opens},{label:"Source",val:s.source}].map(item=>(
               <div key={item.label}><div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"rgba(255,255,255,0.25)" }}>{item.label}</div><div className="text-sm font-medium text-white">{item.val||"—"}</div></div>
             ))}
@@ -266,7 +266,7 @@ function ScholarProfileForm({ existing, onSubmit, onCancel, loading }) {
   return (
     <div>
       {/* Step indicators */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex flex-wrap items-center gap-3 mb-8">
         {STEPS.map((s,i) => (
           <div key={s.id} className="flex items-center gap-2">
             <div style={{ width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,
@@ -378,7 +378,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
       </div>
 
       {!loading && profile && (
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           {[
             { label:"Searches Used", value:profile.searchCount, sub:user.isPro?"Unlimited":`of ${profile.searchLimit} free` },
             { label:"Saved Scholarships", value:profile.savedScholarships?.length||0, sub:"across all searches" },
@@ -603,12 +603,12 @@ export default function App() {
       {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
 
       {/* Nav */}
-      <nav className="flex items-center justify-between px-8 py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+      <nav className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={()=>{reset();setPage("home");}}>
           <div style={{ width:36,height:36,borderRadius:12,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>K</div>
           <div>
             <div className="font-display font-bold text-white text-base" style={{ letterSpacing:"-0.02em" }}>Kaloma</div>
-            <div className="text-xs font-semibold" style={{ color:"#d4af37",letterSpacing:"0.1em" }}>GLOBAL DISCOVERY</div>
+            <div className="hidden sm:block text-xs font-semibold" style={{ color:"#d4af37",letterSpacing:"0.1em" }}>GLOBAL DISCOVERY</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -645,8 +645,8 @@ export default function App() {
                   <h1 className="font-display font-black text-white mb-5 leading-none" style={{ fontSize:"clamp(38px,7vw,68px)",letterSpacing:"-0.03em" }}>Discover your funding<br /><span className="shimmer-text">the world over.</span></h1>
                   <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
                 </div>
-                <div className="rounded-2xl p-8 glass-card">
-                  <div className="grid grid-cols-2 gap-5 mb-5">
+                <div className="rounded-2xl p-4 sm:p-8 glass-card">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>Scholarship Type</label>
                       <select value={type} onChange={e=>setType(e.target.value)} className="w-full rounded-xl px-4 py-3.5 text-sm" style={{ appearance:"none" }}><option value="">Any type (optional)</option>{SCHOLARSHIP_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select>
@@ -674,7 +674,7 @@ export default function App() {
                 </div>
 
                 {/* Feature cards */}
-                <div className="grid grid-cols-3 gap-4 mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
                   {[
                     { icon:"🔍",title:"Smart Search",desc:"Search by type, university or region across 40+ global sources." },
                     { icon:"✦",title:"Best Match",desc:"AI ranks scholarships by your personal win probability. Pro feature." },
