@@ -39,7 +39,7 @@ function AuthModal({ onAuth }) {
     <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.85)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24 }}>
       <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:"1px solid rgba(212,175,55,0.2)",borderRadius:24,padding:40,width:"100%",maxWidth:420,boxShadow:"0 24px 80px rgba(0,0,0,0.6)" }}>
         <div style={{ textAlign:"center",marginBottom:32 }}>
-          <div style={{ width:48,height:48,borderRadius:14,margin:"0 auto 12px",background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>S</div>
+          <div style={{ width:48,height:48,borderRadius:14,margin:"0 auto 12px",background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>K</div>
           <h2 style={{ margin:0,fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:"white" }}>{mode==="login"?"Welcome back":"Create account"}</h2>
           <p style={{ margin:"6px 0 0",fontSize:13,color:"rgba(255,255,255,0.4)" }}>{mode==="login"?"Sign in to continue":"Discover funding opportunities worldwide"}</p>
         </div>
@@ -69,8 +69,8 @@ function UpgradeModal({ onUpgrade, onClose, loading, reason }) {
           {reason==="search_limit" ? "Your free search has been used. Upgrade for unlimited searches, all results, and AI match scoring." : "Unlock unlimited searches, all results, Find Best Match, and AI-written essays."}
         </p>
         <div style={{ display:"flex",gap:12,marginBottom:16 }}>
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$9.99 / month"}</button>
-          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$79 / year  (save 34%)"}</button>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / month"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$34.99 / year  (save 27%)"}</button>
         </div>
         <button onClick={onClose} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:13 }}>Maybe later</button>
       </div>
@@ -203,8 +203,8 @@ function BlurGate({ onUpgrade, loading }) {
         <h3 className="font-display text-2xl font-bold text-white mb-2">5 more scholarships found</h3>
         <p className="text-sm mb-6 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results plus unlimited searches and personalised match scoring.</p>
         <div className="flex gap-3 mb-4 w-full max-w-xs">
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$9.99 / mo"}</button>
-          <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$79 / yr · Save 34%"}</button>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / mo"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$34.99 / yr · Save 27%"}</button>
         </div>
         <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure payment via Stripe</p>
       </div>
@@ -605,7 +605,7 @@ export default function App() {
       {/* Nav */}
       <nav className="flex items-center justify-between px-8 py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
         <div className="flex items-center gap-3 cursor-pointer" onClick={()=>{reset();setPage("home");}}>
-          <div style={{ width:36,height:36,borderRadius:12,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>S</div>
+          <div style={{ width:36,height:36,borderRadius:12,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>K</div>
           <div>
             <div className="font-display font-bold text-white text-base" style={{ letterSpacing:"-0.02em" }}>Kaloma</div>
             <div className="text-xs font-semibold" style={{ color:"#d4af37",letterSpacing:"0.1em" }}>GLOBAL DISCOVERY</div>
