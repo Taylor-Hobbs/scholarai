@@ -69,8 +69,8 @@ function UpgradeModal({ onUpgrade, onClose, loading, reason }) {
           {reason==="search_limit" ? "Your free search has been used. Upgrade for unlimited searches, all results, and AI match scoring." : "Unlock unlimited searches, all results, Find Best Match, and AI-written essays."}
         </p>
         <div style={{ display:"flex",gap:12,marginBottom:16 }}>
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / month"}</button>
-          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$34.99 / year  (save 27%)"}</button>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$0.99 / month"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / year  (save 25%)"}</button>
         </div>
         <button onClick={onClose} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:13 }}>Maybe later</button>
       </div>
@@ -203,8 +203,8 @@ function BlurGate({ onUpgrade, loading }) {
         <h3 className="font-display text-2xl font-bold text-white mb-2">5 more scholarships found</h3>
         <p className="text-sm mb-6 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results plus unlimited searches and personalised match scoring.</p>
         <div className="flex gap-3 mb-4 w-full max-w-xs">
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / mo"}</button>
-          <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$34.99 / yr · Save 27%"}</button>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$0.99 / mo"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / yr · Save 25%"}</button>
         </div>
         <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure payment via Stripe</p>
       </div>
@@ -320,7 +320,7 @@ function ScholarProfileForm({ existing, onSubmit, onCancel, loading }) {
 
 // ─── Profile Page ─────────────────────────────────────────────────────────────
 function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
-  const [tab, setTab] = useState("searches");
+  const [tab, setTab] = useState("discover");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -630,6 +630,18 @@ export default function App() {
           )}
         </div>
       </nav>
+
+      {/* 🔥 Sale Banner */}
+      {!user?.isPro && (
+        <div style={{ background:"linear-gradient(90deg,#7c3aed,#d4af37,#7c3aed)",backgroundSize:"200% auto",animation:"shimmer-bg 3s linear infinite",padding:"10px 16px",textAlign:"center",position:"relative" }}>
+          <span style={{ color:"white",fontSize:13,fontWeight:700,letterSpacing:"0.02em" }}>
+            🔥 Launch Sale — <span style={{ textDecoration:"line-through",opacity:0.7 }}>$3.99</span> <span style={{ color:"#fff700" }}>$0.99/mo</span> · Unlimited searches + AI Match · 
+          </span>
+          <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"white",color:"#7c3aed",border:"none",borderRadius:6,padding:"3px 12px",fontSize:12,fontWeight:800,cursor:"pointer",marginLeft:8 }}>
+            Claim offer →
+          </button>
+        </div>
+      )}
 
       <div className="max-w-4xl mx-auto px-6 py-12">
         {page==="profile"&&user && (

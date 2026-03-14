@@ -174,18 +174,32 @@ app.post("/api/search", requireAuth, async (req, res) => {
 - Region/Country: ${region || "Worldwide"}
 Return ONLY a valid JSON array (no markdown, no explanation):
 [{"name":"...","institution":"...","amount":"$X,XXX","type":"Merit-Based","region":"Australia","description":"2-sentence description.","eligibility":"...","gpa":"3.5+","deadline":"Mar 31, 2026","opens":"Nov 1, 2025","url":"https://...","source":"..."}]
-Make scholarships realistic and genuinely helpful. Return exactly 8.`;
+Make scholarships realistic and genuinely helpful. Return as many as possible up to 16, minimum 8.`;
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
     });
     if (!response.ok) { const err = await response.json(); return res.status(500).json({ error: `Anthropic error: ${JSON.stringify(err)}` }); }
     const data = await response.json();
     const text = data.content?.map(b => b.text || "").join("") || "";
-    const scholarships = JSON.parse(text.replace(/```json|```/g, "").trim());
-    const recentSearches = [{ id: Date.now().toString(), query: { type, university, region }, results: scholarships, searchedAt: new Date().toISOString() }, ...(user.recent_searches || [])].slice(0, 10);
+    let scholarships = JSON.parse(text.replace(/```json|```/g, "").trim());
+    
+    // Merge with stored results from same university+region
+    const pastMatches = (user.recent_searches || [])
+      .filter(s => s.query && 
+        s.query.university?.toLowerCase() === (university||"").toLowerCase() &&
+        s.query.region?.toLowerCase() === (region||"").toLowerCase() &&
+        s.results?.length)
+      .flatMap(s => s.results || []);
+    
+    // Deduplicate by name+institution
+    const seen = new Set(scholarships.map(s => `${s.name}||${s.institution}`));
+    const extras = pastMatches.filter(s => !seen.has(`${s.name}||${s.institution}`));
+    scholarships = [...scholarships, ...extras].slice(0, 24);
+    
+    const recentSearches = [{ id: Date.now().toString(), query: { type, university, region }, results: scholarships, searchedAt: new Date().toISOString() }, ...(user.recent_searches || [])].slice(0, 20);
     await updateUser(user.id, { searchCount: (user.search_count || 0) + 1, recentSearches });
     res.json({ scholarships });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -241,13 +255,13 @@ STUDENT PROFILE:
 For each scholarship, analyse how well it matches this student and assign a matchScore (0-100).
 Return ONLY a valid JSON array (no markdown):
 [{"name":"...","institution":"...","amount":"$X,XXX","type":"Merit-Based","region":"Australia","description":"2-sentence description.","eligibility":"...","gpa":"3.5+","deadline":"Mar 31, 2026","opens":"Nov 1, 2025","url":"https://...","source":"...","matchScore":92,"matchReason":"One sentence explaining why this is a strong match for this specific student."}]
-Sort by matchScore descending. Be realistic. Return exactly 8.`;
+Sort by matchScore descending. Be realistic. Return as many as possible up to 16, minimum 8.`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
     });
     if (!response.ok) { const err = await response.json(); return res.status(500).json({ error: `Anthropic error: ${JSON.stringify(err)}` }); }
     const data = await response.json();
