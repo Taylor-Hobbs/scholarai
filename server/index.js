@@ -233,7 +233,9 @@ app.post("/api/scholar-profile", requireAuth, async (req, res) => {
 
 app.post("/api/match", requireAuth, async (req, res) => {
   const user = await findUserById(req.user.id);
-  if (!user.is_pro) return res.status(403).json({ error: "PRO_REQUIRED", message: "Find Best Match is a Pro feature." });
+  if (!user.is_pro && (user.search_count || 0) >= FREE_SEARCH_LIMIT) {
+    return res.status(403).json({ error: "FREE_LIMIT_REACHED", message: "Upgrade to Pro for unlimited searches." });
+  }
   const p = req.body.scholarProfile || user.scholar_profile;
   if (!p) return res.status(400).json({ error: "Please complete your scholar profile first." });
   if (req.body.scholarProfile) await updateUser(user.id, { scholarProfile: p });

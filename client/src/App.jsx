@@ -658,28 +658,34 @@ export default function App() {
                   <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
                 </div>
                 <div className="rounded-2xl p-4 sm:p-8 glass-card">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>Scholarship Type</label>
-                      <select value={type} onChange={e=>setType(e.target.value)} className="w-full rounded-xl px-4 py-3.5 text-sm" style={{ appearance:"none" }}><option value="">Any type (optional)</option>{SCHOLARSHIP_TYPES.map(t=><option key={t} value={t}>{t}</option>)}</select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>University</label>
-                      <input value={university} onChange={e=>setUniversity(e.target.value)} placeholder="e.g. Monash, Oxford, MIT" className="w-full rounded-xl px-4 py-3.5 text-sm" />
-                    </div>
-                  </div>
-                  <div className="mb-6">
-                    <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.35)" }}>Region / Country</label>
-                    <input value={region} onChange={e=>setRegion(e.target.value)} placeholder="e.g. Australia, USA, Europe, India" className="w-full rounded-xl px-4 py-3.5 text-sm" onKeyDown={e=>e.key==="Enter"&&search()} />
-                  </div>
                   {error&&<div className="mb-4 rounded-xl px-4 py-3 text-sm" style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>}
                   {user&&!user.isPro&&(user.searchCount||0)>=1&&(
-                    <div className="mb-4 rounded-xl px-4 py-3 text-sm flex items-center justify-between" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>
+                    <div className="mb-6 rounded-xl px-4 py-3 text-sm flex items-center justify-between" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>
                       <span>⚠ Free search used. Upgrade for unlimited searches.</span>
                       <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",border:"none",color:"#0a0f1e",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer" }}>Upgrade</button>
                     </div>
                   )}
-                  <button onClick={search} className="w-full gold-btn rounded-xl py-4 text-base font-bold">{user?"Deploy Agents · Search Scholarships":"Sign In to Search"}</button>
+                  <ScholarProfileForm
+                    initial={user?.scholarProfile||{}}
+                    loading={phase==="searching"}
+                    onSubmit={p=>{
+                      if (!user) return setShowAuth(true);
+                      if (!user.isPro && (user.searchCount||0) >= 1) { setUpgradeReason("search_limit"); setShowUpgrade(true); return; }
+                      setError(""); setPhase("searching"); setResults([]);
+                      msgIdx.current=0; setLoadingMsg(MATCH_MSGS[0]);
+                      intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%MATCH_MSGS.length; setLoadingMsg(MATCH_MSGS[msgIdx.current]); },1800);
+                      api("/api/match",{ method:"POST",body:JSON.stringify({scholarProfile:p}) })
+                        .then(r=>r.json())
+                        .then(data=>{
+                          if (data.error==="FREE_LIMIT_REACHED"||data.error==="PRO_REQUIRED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return; }
+                          if (!data.scholarships) throw new Error(data.error||data.message||"No results");
+                          setResults(data.scholarships);
+                          setUser(u=>({...u,searchCount:(u.searchCount||0)+1,scholarProfile:p}));
+                        })
+                        .catch(e=>{ setError(e.message); })
+                        .finally(()=>{ clearInterval(intervalRef.current); setPhase(p=>p==="searching"?"results":p); });
+                    }}
+                  />
                   <p className="text-center text-xs mt-4" style={{ color:"rgba(255,255,255,0.2)" }}>
                     {user ? (user.isPro?"Unlimited searches · All results unlocked":`${1-(user.searchCount||0)} free search remaining`) : "Free account required · No credit card needed"}
                   </p>
@@ -688,9 +694,9 @@ export default function App() {
                 {/* Feature cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
                   {[
-                    { icon:"🔍",title:"Smart Search",desc:"Search by type, university or region across 40+ global sources." },
-                    { icon:"✦",title:"Best Match",desc:"AI ranks scholarships by your personal win probability. Pro feature." },
-                    { icon:"★",title:"Save & Track",desc:"Bookmark scholarships and revisit your search history anytime." },
+                    { icon:"✦",title:"AI-Matched Results",desc:"Our AI ranks scholarships by your personal profile and win probability." },
+                    { icon:"🌍",title:"40+ Global Sources",desc:"Universities, governments, foundations and industry bodies worldwide." },
+                    { icon:"★",title:"Save & Track",desc:"Bookmark scholarships and revisit your match history anytime." },
                   ].map(f=>(
                     <div key={f.title} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}>
                       <div style={{ fontSize:24,marginBottom:10 }}>{f.icon}</div>
@@ -724,15 +730,15 @@ export default function App() {
                   : <>
                       <div className="flex items-center justify-between mb-8">
                         <div>
-                          <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"#d4af37" }}>Search complete</div>
-                          <h2 className="font-display text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Scholarships Found</h2>
+                          <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"#d4af37" }}>Match complete</div>
+                          <h2 className="font-display text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Matched Scholarships</h2>
                           <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
                         </div>
                         <div className="text-xs font-bold px-4 py-2 rounded-xl" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
                       </div>
-                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={false} />)}</div>
+                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} />)}</div>
                       {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} />
-                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={false} /></div>)}
+                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} /></div>)}
                       <div className="mt-10 rounded-2xl p-6 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
                         <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
                         <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ &nbsp;New Search</button>
