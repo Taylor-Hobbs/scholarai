@@ -304,9 +304,9 @@ app.post("/api/essay", requireAuth, async (req, res) => {
 
   const profile = user.scholar_profile || {};
 
-  const prompt = `You are an expert scholarship application writer. Write a compelling, authentic scholarship essay for this student.
+  const prompt = `You are a university writing tutor helping a student draft a scholarship application essay. Your task is to write a first-person essay that reads as though written by an educated, reflective student — not by an AI.
 
-SCHOLARSHIP:
+SCHOLARSHIP CONTEXT:
 - Name: ${scholarship.name}
 - Institution: ${scholarship.institution}
 - Amount: ${scholarship.amount}
@@ -316,25 +316,58 @@ SCHOLARSHIP:
 ESSAY PROMPT:
 "${essayPrompt}"
 
-STUDENT BACKGROUND:
-${background ? background : "Not provided"}
-${profile.studyLevel ? `- Study Level: ${profile.studyLevel}` : ""}
-${profile.fieldOfStudy ? `- Field of Study: ${profile.fieldOfStudy}` : ""}
-${profile.university ? `- University: ${profile.university}` : ""}
-${profile.nationality ? `- Nationality: ${profile.nationality}` : ""}
-${profile.achievements ? `- Achievements: ${profile.achievements}` : ""}
-${profile.careerGoals ? `- Career Goals: ${profile.careerGoals}` : ""}
+STUDENT PROFILE:
+${background ? `Personal context provided by student: ${background}` : "No additional context provided."}
+${profile.studyLevel ? `Study level: ${profile.studyLevel}` : ""}
+${profile.fieldOfStudy ? `Field of study: ${profile.fieldOfStudy}` : ""}
+${profile.university ? `University: ${profile.university}` : ""}
+${profile.nationality ? `Nationality: ${profile.nationality}` : ""}
+${profile.gpa ? `Academic performance: ${profile.gpa}` : ""}
+${profile.achievements ? `Achievements and activities: ${profile.achievements}` : ""}
+${profile.careerGoals ? `Career goals: ${profile.careerGoals}` : ""}
+${profile.financialNeed ? `Financial situation: ${profile.financialNeed}` : ""}
 
-INSTRUCTIONS:
-- Write 400-600 words, in first person
-- Open with a compelling hook, not "I am applying for..."
-- Weave in specific details from the student's background
-- Connect their goals directly to what this scholarship funds
-- End with a strong, forward-looking closing statement
-- Sound authentic, not corporate or AI-generated
-- Do not include a title or heading, just the essay body
+STRICT WRITING RULES — follow every one of these without exception:
 
-Write the essay now:`;
+STRUCTURE:
+- 450 to 550 words. No more, no less.
+- Four to five paragraphs with no headings or subheadings
+- No bullet points, no numbered lists anywhere in the essay
+- No title. Begin with the first word of the opening sentence.
+
+VOICE AND STYLE:
+- Write in a measured, confident academic register — the voice of a thoughtful undergraduate or postgraduate student
+- Use varied sentence lengths. Mix short declarative sentences with longer complex ones. Avoid a rhythm that feels generated.
+- Every paragraph should have a distinct purpose: context, motivation, evidence of capability, fit with the scholarship, forward vision
+- Ground abstract statements in concrete specifics. Replace "I am passionate about X" with a moment, observation, or decision that shows that passion
+- The opening sentence must not begin with "I". Start with a scene, an observation, a question, or a specific moment.
+
+THINGS THAT WILL MAKE THIS ESSAY FAIL — never do any of these:
+- Do not use em dashes (—) or en dashes (–) anywhere
+- Do not use the phrase "I am passionate about"
+- Do not use the phrase "I have always been"
+- Do not use the phrase "Throughout my journey"
+- Do not use the phrase "In conclusion"
+- Do not use the phrase "I am excited to"
+- Do not use the phrase "delve into"
+- Do not use the phrase "foster a love of"
+- Do not use the word "multifaceted"
+- Do not use the word "leverage" in a non-physical sense
+- Do not use the word "empower" or "empowering"
+- Do not use the word "transformative"
+- Do not use the word "pivotal"
+- Do not use the word "testament"
+- Do not use the phrase "not only... but also"
+- Do not use rhetorical questions as paragraph openers
+- Do not end the essay with a sentence that restates your desire to receive the scholarship
+
+WHAT MAKES THIS ESSAY PASS AI DETECTION:
+- Slight imperfections in phrasing are acceptable and preferred over polished uniformity
+- It is fine to begin a sentence with "And" or "But" once, as a real writer would
+- Include at least one sentence that is noticeably shorter than those around it
+- The essay should feel slightly uneven in a natural way, not metronomically structured
+
+Write the essay now. Output only the essay text, nothing else.`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
