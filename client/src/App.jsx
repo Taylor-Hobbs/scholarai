@@ -238,6 +238,77 @@ function EssayModal({ scholarship, userProfile, onClose }) {
   );
 }
 
+// ─── Share Button ─────────────────────────────────────────────────────────────
+function ShareButton({ scholarship }) {
+  const [copied, setCopied] = useState(false);
+  const share = (e) => {
+    e.stopPropagation();
+    const slug = encodeURIComponent(btoa(JSON.stringify(scholarship)));
+    const url = `${window.location.origin}/?s=${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={share} title="Copy shareable link" style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:copied?"#4ade80":"rgba(255,255,255,0.3)",transition:"all 0.2s" }}>
+      {copied ? "✓ Copied" : "🔗 Share"}
+    </button>
+  );
+}
+
+// ─── Deeplink Modal ───────────────────────────────────────────────────────────
+function DeeplinkModal({ scholarship, onClose, onSave, savedIds, onEssay, isPro, onUpgrade }) {
+  const accent = TYPE_COLORS[scholarship.type] || "#d4af37";
+  const isSaved = savedIds?.has(`${scholarship.name}||${scholarship.institution}`);
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.88)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24 }}>
+      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:`1px solid ${accent}30`,borderRadius:24,padding:40,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",position:"relative" }}>
+        <div style={{ position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${accent},transparent)`,borderRadius:"24px 24px 0 0" }} />
+        <button onClick={onClose} style={{ position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:16 }}>✕</button>
+
+        <div style={{ marginBottom:20 }}>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span style={{ fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,background:`${accent}15`,color:accent,border:`1px solid ${accent}30` }}>{scholarship.type}</span>
+            <span style={{ fontSize:11,padding:"4px 10px",borderRadius:20,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.45)",border:"1px solid rgba(255,255,255,0.1)" }}>📍 {scholarship.region}</span>
+            {scholarship.deadline && <span style={{ fontSize:11,padding:"4px 10px",borderRadius:20,background:"rgba(239,68,68,0.1)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)" }}>⏰ {scholarship.deadline}</span>}
+          </div>
+          <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"white",margin:"0 0 6px",lineHeight:1.3 }}>{scholarship.name}</h2>
+          <p style={{ fontSize:14,color:"rgba(255,255,255,0.45)",margin:"0 0 16px" }}>{scholarship.institution}</p>
+          <div style={{ fontSize:32,fontWeight:900,color:accent,marginBottom:16 }}>{scholarship.amount} <span style={{ fontSize:14,fontWeight:400,color:"rgba(255,255,255,0.3)" }}>per year</span></div>
+          <p style={{ fontSize:14,color:"rgba(255,255,255,0.55)",lineHeight:1.7,margin:"0 0 20px" }}>{scholarship.description}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {[{label:"Eligibility",val:scholarship.eligibility},{label:"GPA Required",val:scholarship.gpa},{label:"Opens",val:scholarship.opens},{label:"Source",val:scholarship.source}].map(item=>(
+            <div key={item.label}><div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:"rgba(255,255,255,0.25)",marginBottom:4 }}>{item.label}</div><div style={{ fontSize:13,fontWeight:500,color:"white" }}>{item.val||"—"}</div></div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <a href={scholarship.url} target="_blank" rel="noopener noreferrer" style={{ display:"block",textAlign:"center",padding:"13px",borderRadius:12,background:accent,color:"#0a0f1e",fontSize:14,fontWeight:700,textDecoration:"none" }}>Apply Now →</a>
+          <div className="flex gap-3">
+            <button onClick={()=>onSave(scholarship)} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:isSaved?"rgba(212,175,55,0.15)":"rgba(255,255,255,0.05)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",fontSize:13,fontWeight:600 }}>
+              {isSaved?"★ Saved":"☆ Save"}
+            </button>
+            {isPro ? (
+              <button onClick={()=>onEssay(scholarship)} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37",fontSize:13,fontWeight:600 }}>✍ Draft Essay</button>
+            ) : (
+              <button onClick={()=>onUpgrade("monthly")} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37",fontSize:13,fontWeight:600 }}>✍ Essay — Upgrade</button>
+            )}
+          </div>
+        </div>
+
+        {!isPro && (
+          <div style={{ marginTop:16,padding:"12px 16px",borderRadius:10,background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
+            <p style={{ fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.6,margin:0 }}>
+              <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — paste this scholarship's essay prompt and get an AI-written first draft tailored to your background and goals. Available with <button onClick={()=>onUpgrade("monthly")} style={{background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontSize:12,fontWeight:700,padding:0,textDecoration:"underline"}}>Pro ($0.99/mo)</button>.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro }) {
   const [expanded, setExpanded] = useState(false);
@@ -282,16 +353,27 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro
             )}
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-1.5" style={{ color:accent }}>
             <span className="text-xs font-semibold">{expanded?"Hide details":"View details & apply"}</span>
             <span className="text-xs" style={{ display:"inline-block",transform:expanded?"rotate(180deg)":"none",transition:"transform 0.3s" }}>▼</span>
           </div>
-          {onEssay && (
-            <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:isPro?"rgba(212,175,55,0.1)":"rgba(255,255,255,0.04)",border:`1px solid ${isPro?"rgba(212,175,55,0.3)":"rgba(255,255,255,0.08)"}`,color:isPro?"#d4af37":"rgba(255,255,255,0.3)" }}>
-              ✍ {isPro ? "Draft Essay" : "✦ Pro"}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Share / deeplink button */}
+            <ShareButton scholarship={s} />
+            {/* Essay CTA */}
+            {onEssay && (
+              isPro ? (
+                <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"rgba(212,175,55,0.12)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>
+                  ✍ Draft Essay
+                </button>
+              ) : (
+                <button onClick={handleEssay} title="Upgrade to Pro to draft a tailored application essay for this scholarship" style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.35)" }}>
+                  ✍ Essay — Pro only
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
       {expanded && (
@@ -308,7 +390,17 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro
                 ✍ Draft Application Essay
               </button>
             )}
+            {onEssay && !isPro && (
+              <button onClick={handleEssay} style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"10px 18px",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.4)" }}>
+                ✍ AI Essay Draft <span style={{ fontSize:11,padding:"2px 7px",borderRadius:5,background:"rgba(212,175,55,0.15)",color:"#d4af37",marginLeft:2,fontWeight:700 }}>Pro</span>
+              </button>
+            )}
           </div>
+          {onEssay && !isPro && (
+            <p className="text-xs mt-3 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>
+              ✍ <strong style={{color:"rgba(255,255,255,0.5)"}}>Essay Assistant</strong> — paste the scholarship's essay prompt and get a tailored first draft written around your background. <button onClick={e=>{e.stopPropagation();handleEssay(e);}} style={{background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontSize:12,fontWeight:600,padding:0}}>Unlock with Pro →</button>
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -678,6 +770,7 @@ export default function App() {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
   const [essayScholarship, setEssayScholarship] = useState(null);
+  const [deeplinkedScholarship, setDeeplinkedScholarship] = useState(null);
   const intervalRef = useRef(null); const msgIdx = useRef(0);
 
   useEffect(() => {
@@ -688,6 +781,19 @@ export default function App() {
         else localStorage.removeItem("kaloma_token");
       }).catch(()=>localStorage.removeItem("kaloma_token")).finally(()=>setAuthReady(true));
     } else setAuthReady(true);
+  }, []);
+
+  // Handle deeplinks: ?s=encoded-scholarship-slug
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get("s");
+    if (slug) {
+      try {
+        const scholarship = JSON.parse(atob(decodeURIComponent(slug)));
+        setDeeplinkedScholarship(scholarship);
+        window.history.replaceState({}, "", "/");
+      } catch {}
+    }
   }, []);
 
   useEffect(() => {
@@ -748,6 +854,7 @@ export default function App() {
       {showAuth && <AuthModal onAuth={handleAuth} />}
       {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
       {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
+      {deeplinkedScholarship && <DeeplinkModal scholarship={deeplinkedScholarship} onClose={()=>setDeeplinkedScholarship(null)} onSave={handleSave} savedIds={savedIds} onEssay={s=>{setDeeplinkedScholarship(null);if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onUpgrade={handleUpgrade} />}
 
       {/* Nav */}
       <nav className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
@@ -817,7 +924,6 @@ export default function App() {
                     loading={phase==="searching"}
                     onSubmit={p=>{
                       if (!user) return setShowAuth(true);
-                      if (!user.isPro && (user.searchCount||0) >= 1) { setUpgradeReason("search_limit"); setShowUpgrade(true); return; }
                       setError(""); setPhase("searching"); setResults([]);
                       msgIdx.current=0; setLoadingMsg(MATCH_MSGS[0]);
                       intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%MATCH_MSGS.length; setLoadingMsg(MATCH_MSGS[msgIdx.current]); },1800);
