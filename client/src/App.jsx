@@ -131,8 +131,115 @@ function MatchRing({ score }) {
   );
 }
 
-// ─── Scholarship Card ─────────────────────────────────────────────────────────
-function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
+// ─── Essay Modal ──────────────────────────────────────────────────────────────
+function EssayModal({ scholarship, userProfile, onClose }) {
+  const [essayPrompt, setEssayPrompt] = useState("");
+  const [background, setBackground] = useState("");
+  const [essay, setEssay] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const generate = async () => {
+    if (!essayPrompt.trim()) return setError("Please paste the essay prompt.");
+    setError(""); setLoading(true); setEssay("");
+    try {
+      const res = await api("/api/essay", { method: "POST", body: JSON.stringify({ scholarship, essayPrompt, background }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error);
+      setEssay(data.essay);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const copy = () => { navigator.clipboard.writeText(essay); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+
+  const inp = { width: "100%", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" };
+  const accent = TYPE_COLORS[scholarship.type] || "#d4af37";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
+      <div style={{ background: "linear-gradient(135deg,#0d1829,#0a1220)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 24, padding: 40, width: "100%", maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 18 }}>✍</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", textTransform: "uppercase", letterSpacing: "0.1em" }}>Essay Assistant</span>
+            </div>
+            <h2 style={{ margin: 0, fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 900, color: "white", lineHeight: 1.3 }}>{scholarship.name}</h2>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{scholarship.institution} · <span style={{ color: accent }}>{scholarship.amount}</span></p>
+          </div>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>
+        </div>
+
+        {!essay ? (
+          <>
+            {/* Essay prompt input */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
+                Essay Prompt <span style={{ color: "#d4af37" }}>*</span>
+              </label>
+              <textarea
+                value={essayPrompt}
+                onChange={e => setEssayPrompt(e.target.value)}
+                placeholder='Paste the essay question here, e.g. "Describe how your background has prepared you for this field..."'
+                rows={3} style={inp}
+                onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
+                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
+              />
+            </div>
+
+            {/* Background input */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
+                Your Background <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>(optional — adds personal detail)</span>
+              </label>
+              <textarea
+                value={background}
+                onChange={e => setBackground(e.target.value)}
+                placeholder="Any specific experiences, achievements, or context you want included in the essay..."
+                rows={3} style={inp}
+                onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
+                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
+              />
+            </div>
+
+            {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#fca5a5", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>{error}</div>}
+
+            <button onClick={generate} disabled={loading} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer", background: "linear-gradient(135deg,#d4af37,#f5d060)", color: "#0a0f1e", fontSize: 15, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
+              {loading ? "✍ Writing your essay..." : "✍ Generate Essay Draft"}
+            </button>
+            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>AI-generated first draft · Always personalise before submitting</p>
+          </>
+        ) : (
+          <>
+            {/* Essay output */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.08em" }}>✓ Essay Ready</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{essay.split(" ").length} words</span>
+              </div>
+              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap", margin: 0 }}>{essay}</p>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={copy} style={{ flex: 1, padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: copied ? "rgba(74,222,128,0.2)" : "linear-gradient(135deg,#d4af37,#f5d060)", color: copied ? "#4ade80" : "#0a0f1e", fontSize: 14, fontWeight: 700, border: copied ? "1px solid rgba(74,222,128,0.4)" : "none" }}>
+                {copied ? "✓ Copied!" : "Copy Essay"}
+              </button>
+              <button onClick={() => setEssay("")} style={{ flex: 1, padding: 13, borderRadius: 12, cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 600 }}>
+                ↺ Regenerate
+              </button>
+            </div>
+            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>Review and personalise before submitting your application</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro }) {
   const [expanded, setExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -140,6 +247,7 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
   const isSaved = savedIds?.has(`${s.name}||${s.institution}`);
   useEffect(() => { const t = setTimeout(()=>setMounted(true),index*80); return ()=>clearTimeout(t); }, []);
   const handleSave = async (e) => { e.stopPropagation(); setSaving(true); await onSave(s); setSaving(false); };
+  const handleEssay = (e) => { e.stopPropagation(); onEssay(s); };
   return (
     <div onClick={()=>setExpanded(!expanded)} className="rounded-2xl border cursor-pointer overflow-hidden"
       style={{ opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(24px)",transition:"all 0.5s ease",background:expanded?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",borderColor:expanded?`${accent}40`:"rgba(255,255,255,0.07)",boxShadow:expanded?`0 0 40px ${accent}12`:"none" }}>
@@ -174,9 +282,16 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
             )}
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-1.5" style={{ color:accent }}>
-          <span className="text-xs font-semibold">{expanded?"Hide details":"View details & apply"}</span>
-          <span className="text-xs" style={{ display:"inline-block",transform:expanded?"rotate(180deg)":"none",transition:"transform 0.3s" }}>▼</span>
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center gap-1.5" style={{ color:accent }}>
+            <span className="text-xs font-semibold">{expanded?"Hide details":"View details & apply"}</span>
+            <span className="text-xs" style={{ display:"inline-block",transform:expanded?"rotate(180deg)":"none",transition:"transform 0.3s" }}>▼</span>
+          </div>
+          {onEssay && (
+            <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:isPro?"rgba(212,175,55,0.1)":"rgba(255,255,255,0.04)",border:`1px solid ${isPro?"rgba(212,175,55,0.3)":"rgba(255,255,255,0.08)"}`,color:isPro?"#d4af37":"rgba(255,255,255,0.3)" }}>
+              ✍ {isPro ? "Draft Essay" : "✦ Pro"}
+            </button>
+          )}
         </div>
       </div>
       {expanded && (
@@ -186,7 +301,14 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
               <div key={item.label}><div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"rgba(255,255,255,0.25)" }}>{item.label}</div><div className="text-sm font-medium text-white">{item.val||"—"}</div></div>
             ))}
           </div>
-          <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold hover:opacity-80 transition-opacity" style={{ background:accent,color:"#0a0f1e" }}>Apply Now →</a>
+          <div className="flex items-center gap-3 flex-wrap">
+            <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold hover:opacity-80 transition-opacity" style={{ background:accent,color:"#0a0f1e" }}>Apply Now →</a>
+            {onEssay && isPro && (
+              <button onClick={handleEssay} style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"10px 18px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>
+                ✍ Draft Application Essay
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -194,14 +316,34 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch }) {
 }
 
 // ─── Blur Gate ────────────────────────────────────────────────────────────────
-function BlurGate({ onUpgrade, loading }) {
+function BlurGate({ onUpgrade, loading, topScholarship }) {
+  const accent = topScholarship ? (TYPE_COLORS[topScholarship.type] || "#d4af37") : "#d4af37";
   return (
-    <div className="relative rounded-2xl overflow-hidden mt-4" style={{ border:"1px solid rgba(212,175,55,0.25)" }}>
-      <div className="absolute inset-0 z-10" style={{ background:"linear-gradient(to bottom,rgba(6,11,24,0) 0%,rgba(6,11,24,0.7) 35%,rgba(6,11,24,0.98) 65%)",pointerEvents:"none" }} />
-      <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-10 px-6 text-center">
-        <div style={{ width:48,height:48,borderRadius:"50%",background:"rgba(212,175,55,0.15)",border:"1px solid rgba(212,175,55,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,marginBottom:16 }}>🔒</div>
-        <h3 className="font-display text-2xl font-bold text-white mb-2">5 more scholarships found</h3>
-        <p className="text-sm mb-6 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results plus unlimited searches and personalised match scoring.</p>
+    <div className="mt-4">
+      {/* Best hidden scholarship — teaser card */}
+      {topScholarship && (
+        <div style={{ marginBottom: 0, borderRadius:"16px 16px 0 0", overflow:"hidden", border:"1px solid rgba(212,175,55,0.3)", borderBottom:"none", background:"rgba(255,255,255,0.04)", padding:"18px 24px", position:"relative" }}>
+          <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${accent},transparent)` }} />
+          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
+            <span style={{ fontSize:11,fontWeight:700,color:"#d4af37",textTransform:"uppercase",letterSpacing:"0.1em" }}>✦ Best Result — Locked</span>
+          </div>
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:12 }}>
+            <div style={{ flex:1,filter:"blur(5px)",userSelect:"none",pointerEvents:"none" }}>
+              <div style={{ fontSize:16,fontWeight:700,color:"white",marginBottom:2 }}>{topScholarship.name}</div>
+              <div style={{ fontSize:13,color:"rgba(255,255,255,0.4)" }}>{topScholarship.institution}</div>
+              {topScholarship.matchScore && <div style={{ fontSize:12,color:"#4ade80",marginTop:4,fontWeight:600 }}>{topScholarship.matchScore}% match</div>}
+            </div>
+            <div style={{ fontSize:24,fontWeight:900,color:accent,filter:"blur(5px)",userSelect:"none",pointerEvents:"none",flexShrink:0 }}>{topScholarship.amount}</div>
+          </div>
+        </div>
+      )}
+      <div className="relative rounded-2xl overflow-hidden" style={{ border:"1px solid rgba(212,175,55,0.25)", borderRadius: topScholarship ? "0 0 16px 16px" : 16 }}>
+        <div className="absolute inset-0 z-10" style={{ background:"linear-gradient(to bottom,rgba(6,11,24,0) 0%,rgba(6,11,24,0.7) 35%,rgba(6,11,24,0.98) 65%)",pointerEvents:"none" }} />
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-10 px-6 text-center">
+          <div style={{ width:48,height:48,borderRadius:"50%",background:"rgba(212,175,55,0.15)",border:"1px solid rgba(212,175,55,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,marginBottom:16 }}>🔒</div>
+          <h3 className="font-display text-2xl font-bold text-white mb-2">More scholarships found</h3>
+        <p className="text-sm mb-2 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results, unlimited searches, and the <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — AI-written application drafts for every scholarship.</p>
+        <p className="text-xs mb-5 max-w-xs" style={{ color:"rgba(255,255,255,0.3)" }}>One subscription. One scholarship win could pay for years of access.</p>
         <div className="flex gap-3 mb-4 w-full max-w-xs">
           <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$0.99 / mo"}</button>
           <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / yr · Save 25%"}</button>
@@ -219,6 +361,7 @@ function BlurGate({ onUpgrade, loading }) {
         ))}
       </div>
     </div>
+  </div>
   );
 }
 
@@ -329,6 +472,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
   const [matchError, setMatchError] = useState("");
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchMsg, setMatchMsg] = useState("");
+  const [essayTarget, setEssayTarget] = useState(null);
   const msgIdx = useRef(0); const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -366,6 +510,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
 
   return (
     <div className="animate-fade-up">
+      {essayTarget && <EssayModal scholarship={essayTarget} userProfile={user?.scholarProfile} onClose={()=>setEssayTarget(null)} />}
       <div className="flex items-center justify-between mb-8">
         <div>
           <button onClick={onBack} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13,marginBottom:8,padding:0 }}>← Back to search</button>
@@ -441,7 +586,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
           {tab==="saved" && (
             !profile.savedScholarships?.length
               ? <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}><div style={{ fontSize:32,marginBottom:12 }}>★</div><p style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>No saved scholarships yet.</p></div>
-              : <div className="flex flex-col gap-4">{profile.savedScholarships.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={!!s.matchScore} />)}</div>
+              : <div className="flex flex-col gap-4">{profile.savedScholarships.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={!!s.matchScore} onEssay={s=>{if(!user.isPro){onUpgrade&&onUpgrade("monthly");}else{setEssayTarget(s);}}} isPro={user.isPro} />)}</div>
           )}
 
           {/* Best Match */}
@@ -505,7 +650,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
                     ))}
                   </div>
                   <div className="flex flex-col gap-4">
-                    {matchResults.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} />)}
+                    {matchResults.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayTarget(s)} isPro={user.isPro} />)}
                   </div>
                 </div>
               )}
@@ -532,6 +677,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [stripeLoading, setStripeLoading] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
+  const [essayScholarship, setEssayScholarship] = useState(null);
   const intervalRef = useRef(null); const msgIdx = useRef(0);
 
   useEffect(() => {
@@ -601,6 +747,7 @@ export default function App() {
     <div className="min-h-screen" style={{ background:"linear-gradient(135deg,#060b18 0%,#0a1628 50%,#060d1f 100%)" }}>
       {showAuth && <AuthModal onAuth={handleAuth} />}
       {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
+      {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
 
       {/* Nav */}
       <nav className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
@@ -736,9 +883,9 @@ export default function App() {
                         </div>
                         <div className="text-xs font-bold px-4 py-2 rounded-xl" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
                       </div>
-                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} />)}</div>
-                      {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} />
-                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} /></div>)}
+                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} />)}</div>
+                      {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} topScholarship={results[FREE_LIMIT]} />
+                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayScholarship(s)} isPro={user?.isPro} /></div>)}
                       <div className="mt-10 rounded-2xl p-6 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
                         <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
                         <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ &nbsp;New Search</button>
