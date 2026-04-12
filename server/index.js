@@ -294,6 +294,61 @@ app.get("/api/verify-session/:sessionId", requireAuth, async (req, res) => {
   } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
+// ─── Essay Assistant ──────────────────────────────────────────────────────────
+app.post("/api/essay", requireAuth, async (req, res) => {
+  const user = await findUserById(req.user.id);
+  if (!user.is_pro) return res.status(403).json({ error: "PRO_REQUIRED", message: "Essay Assistant is a Pro feature." });
+
+  const { scholarship, essayPrompt, background } = req.body;
+  if (!scholarship || !essayPrompt) return res.status(400).json({ error: "Scholarship and essay prompt are required." });
+
+  const profile = user.scholar_profile || {};
+
+  const prompt = `You are an expert scholarship application writer. Write a compelling, authentic scholarship essay for this student.
+
+SCHOLARSHIP:
+- Name: ${scholarship.name}
+- Institution: ${scholarship.institution}
+- Amount: ${scholarship.amount}
+- Type: ${scholarship.type}
+- Eligibility: ${scholarship.eligibility || "Not specified"}
+
+ESSAY PROMPT:
+"${essayPrompt}"
+
+STUDENT BACKGROUND:
+${background ? background : "Not provided"}
+${profile.studyLevel ? `- Study Level: ${profile.studyLevel}` : ""}
+${profile.fieldOfStudy ? `- Field of Study: ${profile.fieldOfStudy}` : ""}
+${profile.university ? `- University: ${profile.university}` : ""}
+${profile.nationality ? `- Nationality: ${profile.nationality}` : ""}
+${profile.achievements ? `- Achievements: ${profile.achievements}` : ""}
+${profile.careerGoals ? `- Career Goals: ${profile.careerGoals}` : ""}
+
+INSTRUCTIONS:
+- Write 400-600 words, in first person
+- Open with a compelling hook, not "I am applying for..."
+- Weave in specific details from the student's background
+- Connect their goals directly to what this scholarship funds
+- End with a strong, forward-looking closing statement
+- Sound authentic, not corporate or AI-generated
+- Do not include a title or heading, just the essay body
+
+Write the essay now:`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
+    });
+    if (!response.ok) { const err = await response.json(); return res.status(500).json({ error: `Anthropic error: ${JSON.stringify(err)}` }); }
+    const data = await response.json();
+    const essay = data.content?.map(b => b.text || "").join("") || "";
+    res.json({ essay });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get("/health", (_, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3001;
