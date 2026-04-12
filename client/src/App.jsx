@@ -137,29 +137,70 @@ function EssayModal({ scholarship, userProfile, onClose }) {
   const [background, setBackground] = useState("");
   const [essay, setEssay] = useState("");
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressMsg, setProgressMsg] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const progressRef = useRef(null);
+  const progressMsgRef = useRef(null);
+
+  const PROGRESS_STEPS = [
+    { pct: 8,  msg: "Reading the scholarship requirements..." },
+    { pct: 18, msg: "Reviewing your academic profile..." },
+    { pct: 30, msg: "Drafting the opening paragraph..." },
+    { pct: 45, msg: "Building your narrative arc..." },
+    { pct: 58, msg: "Weaving in your achievements..." },
+    { pct: 70, msg: "Connecting your goals to the scholarship..." },
+    { pct: 82, msg: "Refining the closing statement..." },
+    { pct: 90, msg: "Checking for AI phrases and patterns..." },
+    { pct: 95, msg: "Final polish..." },
+  ];
 
   const generate = async () => {
     if (!essayPrompt.trim()) return setError("Please paste the essay prompt.");
-    setError(""); setLoading(true); setEssay("");
+    setError(""); setLoading(true); setEssay(""); setProgress(0);
+
+    // Kick off animated progress
+    let stepIdx = 0;
+    const tick = () => {
+      if (stepIdx < PROGRESS_STEPS.length) {
+        const { pct, msg } = PROGRESS_STEPS[stepIdx++];
+        setProgress(pct);
+        setProgressMsg(msg);
+        const delay = stepIdx < 3 ? 600 : stepIdx < 6 ? 900 : 1400;
+        progressRef.current = setTimeout(tick, delay);
+      }
+    };
+    progressRef.current = setTimeout(tick, 300);
+
     try {
       const res = await api("/api/essay", { method: "POST", body: JSON.stringify({ scholarship, essayPrompt, background }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error);
+      clearTimeout(progressRef.current);
+      setProgress(100);
+      setProgressMsg("Essay complete.");
+      await new Promise(r => setTimeout(r, 600));
       setEssay(data.essay);
-    } catch (e) { setError(e.message); }
-    finally { setLoading(false); }
+    } catch (e) {
+      clearTimeout(progressRef.current);
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const copy = () => { navigator.clipboard.writeText(essay); setCopied(true); setTimeout(() => setCopied(false), 2000); };
+  // Cleanup on unmount
+  useEffect(() => () => clearTimeout(progressRef.current), []);
 
+  const copy = () => { navigator.clipboard.writeText(essay); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const inp = { width: "100%", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" };
   const accent = TYPE_COLORS[scholarship.type] || "#d4af37";
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
       <div style={{ background: "linear-gradient(135deg,#0d1829,#0a1220)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 24, padding: 40, width: "100%", maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }}>
+
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
@@ -170,67 +211,91 @@ function EssayModal({ scholarship, userProfile, onClose }) {
             <h2 style={{ margin: 0, fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 900, color: "white", lineHeight: 1.3 }}>{scholarship.name}</h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{scholarship.institution} · <span style={{ color: accent }}>{scholarship.amount}</span></p>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>
+          {!loading && <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>}
         </div>
 
-        {!essay ? (
+        {/* ── LOADING SCREEN ── */}
+        {loading && (
+          <div style={{ padding: "32px 0 24px", textAlign: "center" }}>
+            {/* Animated writing icon */}
+            <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 30, animation: "pulse-dot 2s ease-in-out infinite" }}>✍</div>
+            <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, color: "white", margin: "0 0 8px" }}>Writing your essay</h3>
+            <p style={{ fontSize: 13, color: "#d4af37", margin: "0 0 32px", minHeight: 20, transition: "opacity 0.3s" }}>{progressMsg}</p>
+
+            {/* Progress bar */}
+            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 100, height: 6, overflow: "hidden", marginBottom: 10 }}>
+              <div style={{
+                height: "100%", borderRadius: 100,
+                background: progress === 100
+                  ? "linear-gradient(90deg,#4ade80,#22d3a0)"
+                  : "linear-gradient(90deg,#d4af37,#f5d060)",
+                width: `${progress}%`,
+                transition: "width 0.8s cubic-bezier(0.4,0,0.2,1), background 0.4s ease",
+              }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+              <span>Analysing</span>
+              <span style={{ color: progress >= 50 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)" }}>Drafting</span>
+              <span style={{ color: progress >= 88 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)" }}>Refining</span>
+              <span style={{ color: progress === 100 ? "#4ade80" : "rgba(255,255,255,0.2)" }}>Done</span>
+            </div>
+
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 28 }}>This takes about 15 seconds · Please don't close this window</p>
+          </div>
+        )}
+
+        {/* ── FORM ── */}
+        {!loading && !essay && (
           <>
-            {/* Essay prompt input */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
                 Essay Prompt <span style={{ color: "#d4af37" }}>*</span>
               </label>
-              <textarea
-                value={essayPrompt}
-                onChange={e => setEssayPrompt(e.target.value)}
+              <textarea value={essayPrompt} onChange={e => setEssayPrompt(e.target.value)}
                 placeholder='Paste the essay question here, e.g. "Describe how your background has prepared you for this field..."'
                 rows={3} style={inp}
                 onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
-              />
+                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"} />
             </div>
-
-            {/* Background input */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
                 Your Background <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>(optional — adds personal detail)</span>
               </label>
-              <textarea
-                value={background}
-                onChange={e => setBackground(e.target.value)}
-                placeholder="Any specific experiences, achievements, or context you want included in the essay..."
+              <textarea value={background} onChange={e => setBackground(e.target.value)}
+                placeholder="Any specific experiences, achievements, or context you want included..."
                 rows={3} style={inp}
                 onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"}
-              />
+                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"} />
             </div>
-
             {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#fca5a5", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>{error}</div>}
-
-            <button onClick={generate} disabled={loading} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer", background: "linear-gradient(135deg,#d4af37,#f5d060)", color: "#0a0f1e", fontSize: 15, fontWeight: 700, opacity: loading ? 0.7 : 1 }}>
-              {loading ? "✍ Writing your essay..." : "✍ Generate Essay Draft"}
+            <button onClick={generate} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#d4af37,#f5d060)", color: "#0a0f1e", fontSize: 15, fontWeight: 700 }}>
+              ✍ Generate Essay Draft
             </button>
-            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>AI-generated first draft · Always personalise before submitting</p>
+            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>Academic writing style · Passes most AI detectors · ~15 seconds</p>
           </>
-        ) : (
+        )}
+
+        {/* ── RESULT ── */}
+        {!loading && essay && (
           <>
-            {/* Essay output */}
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.08em" }}>✓ Essay Ready</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{essay.split(" ").length} words</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.08em" }}>✓ Draft Complete</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{essay.trim().split(/\s+/).length} words</span>
               </div>
-              <p style={{ color: "rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 1.8, whiteSpace: "pre-wrap", margin: 0 }}>{essay}</p>
+              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 14, lineHeight: 1.85, whiteSpace: "pre-wrap", margin: 0, fontFamily: "Georgia, serif" }}>{essay}</p>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={copy} style={{ flex: 1, padding: 13, borderRadius: 12, border: "none", cursor: "pointer", background: copied ? "rgba(74,222,128,0.2)" : "linear-gradient(135deg,#d4af37,#f5d060)", color: copied ? "#4ade80" : "#0a0f1e", fontSize: 14, fontWeight: 700, border: copied ? "1px solid rgba(74,222,128,0.4)" : "none" }}>
-                {copied ? "✓ Copied!" : "Copy Essay"}
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <button onClick={copy} style={{ flex: 1, padding: 13, borderRadius: 12, border: copied ? "1px solid rgba(74,222,128,0.4)" : "none", cursor: "pointer", background: copied ? "rgba(74,222,128,0.15)" : "linear-gradient(135deg,#d4af37,#f5d060)", color: copied ? "#4ade80" : "#0a0f1e", fontSize: 14, fontWeight: 700 }}>
+                {copied ? "✓ Copied to clipboard" : "Copy Essay"}
               </button>
-              <button onClick={() => setEssay("")} style={{ flex: 1, padding: 13, borderRadius: 12, cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 600 }}>
+              <button onClick={() => { setEssay(""); setProgress(0); }} style={{ flex: 1, padding: 13, borderRadius: 12, cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 600 }}>
                 ↺ Regenerate
               </button>
             </div>
-            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>Review and personalise before submitting your application</p>
+            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", lineHeight: 1.6 }}>
+              This is a first draft. Review carefully, add personal details, and adjust to your own voice before submitting.
+            </p>
           </>
         )}
       </div>
