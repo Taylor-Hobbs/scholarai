@@ -270,7 +270,7 @@ Sort by matchScore descending. Be realistic. Return as many as possible up to 16
     const text = data.content?.map(b => b.text || "").join("") || "";
     const scholarships = JSON.parse(text.replace(/```json|```/g, "").trim());
     const recentSearches = [{ id: Date.now().toString(), query: { type: "✦ Best Match", university: p.university, region: p.studyCountry }, results: scholarships, searchedAt: new Date().toISOString(), isBestMatch: true }, ...(user.recent_searches || [])].slice(0, 10);
-    await updateUser(user.id, { recentSearches });
+    await updateUser(user.id, { searchCount: (user.search_count || 0) + 1, recentSearches });
     res.json({ scholarships });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
