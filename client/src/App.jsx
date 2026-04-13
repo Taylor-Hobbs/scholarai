@@ -69,7 +69,7 @@ function UpgradeModal({ onUpgrade, onClose, loading, reason }) {
           {reason==="search_limit" ? "Your free search has been used. Upgrade for unlimited searches, all results, and AI match scoring." : "Unlock unlimited searches, all results, Find Best Match, and AI-written essays."}
         </p>
         <div style={{ display:"flex",gap:12,marginBottom:16 }}>
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$0.99 / month"}</button>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / month"}</button>
           <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / year  (save 25%)"}</button>
         </div>
         <button onClick={onClose} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:13 }}>Maybe later</button>
@@ -366,7 +366,7 @@ function DeeplinkModal({ scholarship, onClose, onSave, savedIds, onEssay, isPro,
         {!isPro && (
           <div style={{ marginTop:16,padding:"12px 16px",borderRadius:10,background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
             <p style={{ fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.6,margin:0 }}>
-              <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — paste this scholarship's essay prompt and get an AI-written first draft tailored to your background and goals. Available with <button onClick={()=>onUpgrade("monthly")} style={{background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontSize:12,fontWeight:700,padding:0,textDecoration:"underline"}}>Pro ($0.99/mo)</button>.
+              <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — paste this scholarship's essay prompt and get an AI-written first draft tailored to your background and goals. Available with <button onClick={()=>onUpgrade("monthly")} style={{background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontSize:12,fontWeight:700,padding:0,textDecoration:"underline"}}>Pro ($3.99/mo)</button>.
             </p>
           </div>
         )}
@@ -502,7 +502,7 @@ function BlurGate({ onUpgrade, loading, topScholarship }) {
         <p className="text-sm mb-2 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results, unlimited searches, and the <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — AI-written application drafts for every scholarship.</p>
         <p className="text-xs mb-5 max-w-xs" style={{ color:"rgba(255,255,255,0.3)" }}>One subscription. One scholarship win could pay for years of access.</p>
         <div className="flex gap-3 mb-4 w-full max-w-xs">
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$0.99 / mo"}</button>
+          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / mo"}</button>
           <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / yr · Save 25%"}</button>
         </div>
         <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure payment via Stripe</p>
