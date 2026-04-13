@@ -950,17 +950,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 🔥 Sale Banner */}
-      {!user?.isPro && (
-        <div style={{ background:"linear-gradient(90deg,#7c3aed,#d4af37,#7c3aed)",backgroundSize:"200% auto",animation:"shimmer-bg 3s linear infinite",padding:"10px 16px",textAlign:"center",position:"relative" }}>
-          <span style={{ color:"white",fontSize:13,fontWeight:700,letterSpacing:"0.02em" }}>
-            🔥 Launch Sale — <span style={{ textDecoration:"line-through",opacity:0.7 }}>$3.99</span> <span style={{ color:"#fff700" }}>$0.99/mo</span> · Unlimited searches + AI Match · 
-          </span>
-          <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"white",color:"#7c3aed",border:"none",borderRadius:6,padding:"3px 12px",fontSize:12,fontWeight:800,cursor:"pointer",marginLeft:8 }}>
-            Claim offer →
-          </button>
-        </div>
-      )}
 
       <div className="max-w-4xl mx-auto px-6 py-12">
         {page==="profile"&&user && (
