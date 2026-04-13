@@ -142,7 +142,6 @@ function EssayModal({ scholarship, userProfile, onClose }) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const progressRef = useRef(null);
-  const progressMsgRef = useRef(null);
 
   const PROGRESS_STEPS = [
     { pct: 8,  msg: "Reading the scholarship requirements..." },
@@ -159,143 +158,96 @@ function EssayModal({ scholarship, userProfile, onClose }) {
   const generate = async () => {
     if (!essayPrompt.trim()) return setError("Please paste the essay prompt.");
     setError(""); setLoading(true); setEssay(""); setProgress(0);
-
-    // Kick off animated progress
     let stepIdx = 0;
     const tick = () => {
       if (stepIdx < PROGRESS_STEPS.length) {
         const { pct, msg } = PROGRESS_STEPS[stepIdx++];
-        setProgress(pct);
-        setProgressMsg(msg);
+        setProgress(pct); setProgressMsg(msg);
         const delay = stepIdx < 3 ? 600 : stepIdx < 6 ? 900 : 1400;
         progressRef.current = setTimeout(tick, delay);
       }
     };
     progressRef.current = setTimeout(tick, 300);
-
     try {
       const res = await api("/api/essay", { method: "POST", body: JSON.stringify({ scholarship, essayPrompt, background }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error);
       clearTimeout(progressRef.current);
-      setProgress(100);
-      setProgressMsg("Essay complete.");
+      setProgress(100); setProgressMsg("Essay complete.");
       await new Promise(r => setTimeout(r, 600));
       setEssay(data.essay);
-    } catch (e) {
-      clearTimeout(progressRef.current);
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { clearTimeout(progressRef.current); setError(e.message); }
+    finally { setLoading(false); }
   };
 
-  // Cleanup on unmount
   useEffect(() => () => clearTimeout(progressRef.current), []);
-
   const copy = () => { navigator.clipboard.writeText(essay); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   const inp = { width: "100%", padding: "12px 16px", borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" };
   const accent = TYPE_COLORS[scholarship.type] || "#d4af37";
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.92)", backdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
-      <div style={{ background: "linear-gradient(135deg,#0d1829,#0a1220)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: 24, padding: 40, width: "100%", maxWidth: 620, maxHeight: "90vh", overflowY: "auto" }}>
-
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 18 }}>✍</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", textTransform: "uppercase", letterSpacing: "0.1em" }}>Essay Assistant</span>
+    <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.92)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px",overflowY:"auto" }}>
+      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:"1px solid rgba(212,175,55,0.2)",borderRadius:24,padding:"28px 24px",width:"100%",maxWidth:620,marginTop:8 }}>
+        <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20 }}>
+          <div style={{ flex:1,minWidth:0,paddingRight:12 }}>
+            <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:6 }}>
+              <span style={{ fontSize:16 }}>✍</span>
+              <span style={{ fontSize:11,fontWeight:700,color:"#d4af37",textTransform:"uppercase",letterSpacing:"0.1em" }}>Essay Assistant</span>
             </div>
-            <h2 style={{ margin: 0, fontFamily: "'Playfair Display',serif", fontSize: 20, fontWeight: 900, color: "white", lineHeight: 1.3 }}>{scholarship.name}</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{scholarship.institution} · <span style={{ color: accent }}>{scholarship.amount}</span></p>
+            <h2 style={{ margin:0,fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"white",lineHeight:1.3,wordBreak:"break-word" }}>{scholarship.name}</h2>
+            <p style={{ margin:"4px 0 0",fontSize:12,color:"rgba(255,255,255,0.4)" }}>{scholarship.institution} · <span style={{ color:accent }}>{scholarship.amount}</span></p>
           </div>
-          {!loading && <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)", width: 32, height: 32, borderRadius: 8, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>✕</button>}
+          {!loading && <button onClick={onClose} style={{ background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",width:32,height:32,minWidth:32,borderRadius:8,cursor:"pointer",fontSize:16,flexShrink:0 }}>✕</button>}
         </div>
 
-        {/* ── LOADING SCREEN ── */}
         {loading && (
-          <div style={{ padding: "32px 0 24px", textAlign: "center" }}>
-            {/* Animated writing icon */}
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", fontSize: 30, animation: "pulse-dot 2s ease-in-out infinite" }}>✍</div>
-            <h3 style={{ fontFamily: "'Playfair Display',serif", fontSize: 22, fontWeight: 900, color: "white", margin: "0 0 8px" }}>Writing your essay</h3>
-            <p style={{ fontSize: 13, color: "#d4af37", margin: "0 0 32px", minHeight: 20, transition: "opacity 0.3s" }}>{progressMsg}</p>
-
-            {/* Progress bar */}
-            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 100, height: 6, overflow: "hidden", marginBottom: 10 }}>
-              <div style={{
-                height: "100%", borderRadius: 100,
-                background: progress === 100
-                  ? "linear-gradient(90deg,#4ade80,#22d3a0)"
-                  : "linear-gradient(90deg,#d4af37,#f5d060)",
-                width: `${progress}%`,
-                transition: "width 0.8s cubic-bezier(0.4,0,0.2,1), background 0.4s ease",
-              }} />
+          <div style={{ padding:"24px 0 16px",textAlign:"center" }}>
+            <div style={{ width:64,height:64,borderRadius:20,background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:28,animation:"pulse-dot 2s ease-in-out infinite" }}>✍</div>
+            <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:900,color:"white",margin:"0 0 8px" }}>Writing your essay</h3>
+            <p style={{ fontSize:13,color:"#d4af37",margin:"0 0 28px",minHeight:20 }}>{progressMsg}</p>
+            <div style={{ background:"rgba(255,255,255,0.06)",borderRadius:100,height:6,overflow:"hidden",marginBottom:10 }}>
+              <div style={{ height:"100%",borderRadius:100,background:progress===100?"linear-gradient(90deg,#4ade80,#22d3a0)":"linear-gradient(90deg,#d4af37,#f5d060)",width:`${progress}%`,transition:"width 0.8s cubic-bezier(0.4,0,0.2,1)" }} />
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",fontSize:10,color:"rgba(255,255,255,0.25)" }}>
               <span>Analysing</span>
-              <span style={{ color: progress >= 50 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)" }}>Drafting</span>
-              <span style={{ color: progress >= 88 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.2)" }}>Refining</span>
-              <span style={{ color: progress === 100 ? "#4ade80" : "rgba(255,255,255,0.2)" }}>Done</span>
+              <span style={{ color:progress>=50?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.2)" }}>Drafting</span>
+              <span style={{ color:progress>=88?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.2)" }}>Refining</span>
+              <span style={{ color:progress===100?"#4ade80":"rgba(255,255,255,0.2)" }}>Done</span>
             </div>
-
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 28 }}>This takes about 15 seconds · Please don't close this window</p>
+            <p style={{ fontSize:11,color:"rgba(255,255,255,0.2)",marginTop:24 }}>About 15 seconds · Please don't close this window</p>
           </div>
         )}
 
-        {/* ── FORM ── */}
         {!loading && !essay && (
           <>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
-                Essay Prompt <span style={{ color: "#d4af37" }}>*</span>
-              </label>
-              <textarea value={essayPrompt} onChange={e => setEssayPrompt(e.target.value)}
-                placeholder='Paste the essay question here, e.g. "Describe how your background has prepared you for this field..."'
-                rows={3} style={inp}
-                onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"} />
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:"rgba(255,255,255,0.4)",marginBottom:8 }}>Essay Prompt <span style={{ color:"#d4af37" }}>*</span></label>
+              <textarea value={essayPrompt} onChange={e=>setEssayPrompt(e.target.value)} placeholder='Paste the essay question here...' rows={3} style={inp} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} />
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
-                Your Background <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>(optional — adds personal detail)</span>
-              </label>
-              <textarea value={background} onChange={e => setBackground(e.target.value)}
-                placeholder="Any specific experiences, achievements, or context you want included..."
-                rows={3} style={inp}
-                onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-                onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.12)"} />
+            <div style={{ marginBottom:18 }}>
+              <label style={{ display:"block",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:"rgba(255,255,255,0.4)",marginBottom:8 }}>Your Background <span style={{ color:"rgba(255,255,255,0.25)",fontWeight:400 }}>(optional)</span></label>
+              <textarea value={background} onChange={e=>setBackground(e.target.value)} placeholder="Any specific experiences, achievements, or context to include..." rows={3} style={inp} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} />
             </div>
-            {error && <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#fca5a5", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>{error}</div>}
-            <button onClick={generate} style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#d4af37,#f5d060)", color: "#0a0f1e", fontSize: 15, fontWeight: 700 }}>
-              ✍ Generate Essay Draft
-            </button>
-            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>Academic writing style · Passes most AI detectors · ~15 seconds</p>
+            {error && <div style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5",padding:"10px 14px",borderRadius:10,fontSize:13,marginBottom:14 }}>{error}</div>}
+            <button onClick={generate} style={{ width:"100%",padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700 }}>✍ Generate Essay Draft</button>
+            <p style={{ textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.2)",marginTop:10 }}>Academic writing style · Passes most AI detectors · ~15 seconds</p>
           </>
         )}
 
-        {/* ── RESULT ── */}
         {!loading && essay && (
           <>
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 24, marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#4ade80", textTransform: "uppercase", letterSpacing: "0.08em" }}>✓ Draft Complete</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{essay.trim().split(/\s+/).length} words</span>
+            <div style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:20,marginBottom:14 }}>
+              <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
+                <span style={{ fontSize:11,fontWeight:700,color:"#4ade80",textTransform:"uppercase",letterSpacing:"0.08em" }}>✓ Draft Complete</span>
+                <span style={{ fontSize:11,color:"rgba(255,255,255,0.3)" }}>{essay.trim().split(/\s+/).length} words</span>
               </div>
-              <p style={{ color: "rgba(255,255,255,0.82)", fontSize: 14, lineHeight: 1.85, whiteSpace: "pre-wrap", margin: 0, fontFamily: "Georgia, serif" }}>{essay}</p>
+              <p style={{ color:"rgba(255,255,255,0.82)",fontSize:14,lineHeight:1.85,whiteSpace:"pre-wrap",margin:0,fontFamily:"Georgia, serif" }}>{essay}</p>
             </div>
-            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-              <button onClick={copy} style={{ flex: 1, padding: 13, borderRadius: 12, border: copied ? "1px solid rgba(74,222,128,0.4)" : "none", cursor: "pointer", background: copied ? "rgba(74,222,128,0.15)" : "linear-gradient(135deg,#d4af37,#f5d060)", color: copied ? "#4ade80" : "#0a0f1e", fontSize: 14, fontWeight: 700 }}>
-                {copied ? "✓ Copied to clipboard" : "Copy Essay"}
-              </button>
-              <button onClick={() => { setEssay(""); setProgress(0); }} style={{ flex: 1, padding: 13, borderRadius: 12, cursor: "pointer", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: 600 }}>
-                ↺ Regenerate
-              </button>
+            <div style={{ display:"flex",gap:10,marginBottom:10 }}>
+              <button onClick={copy} style={{ flex:1,padding:13,borderRadius:12,border:copied?"1px solid rgba(74,222,128,0.4)":"none",cursor:"pointer",background:copied?"rgba(74,222,128,0.15)":"linear-gradient(135deg,#d4af37,#f5d060)",color:copied?"#4ade80":"#0a0f1e",fontSize:14,fontWeight:700 }}>{copied?"✓ Copied":"Copy Essay"}</button>
+              <button onClick={()=>{setEssay("");setProgress(0);}} style={{ flex:1,padding:13,borderRadius:12,cursor:"pointer",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.6)",fontSize:14,fontWeight:600 }}>↺ Regenerate</button>
             </div>
-            <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", lineHeight: 1.6 }}>
-              This is a first draft. Review carefully, add personal details, and adjust to your own voice before submitting.
-            </p>
+            <p style={{ textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.2)",lineHeight:1.6 }}>First draft — review carefully and adjust to your own voice before submitting.</p>
           </>
         )}
       </div>
@@ -326,47 +278,40 @@ function DeeplinkModal({ scholarship, onClose, onSave, savedIds, onEssay, isPro,
   const accent = TYPE_COLORS[scholarship.type] || "#d4af37";
   const isSaved = savedIds?.has(`${scholarship.name}||${scholarship.institution}`);
   return (
-    <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.88)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24 }}>
-      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:`1px solid ${accent}30`,borderRadius:24,padding:40,width:"100%",maxWidth:540,maxHeight:"90vh",overflowY:"auto",position:"relative" }}>
+    <div style={{ position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,0.88)",backdropFilter:"blur(10px)",display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"16px",overflowY:"auto" }}>
+      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:`1px solid ${accent}30`,borderRadius:24,padding:"28px 24px",width:"100%",maxWidth:540,position:"relative",marginTop:8 }}>
         <div style={{ position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,transparent,${accent},transparent)`,borderRadius:"24px 24px 0 0" }} />
-        <button onClick={onClose} style={{ position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:16 }}>✕</button>
-
-        <div style={{ marginBottom:20 }}>
-          <div className="flex flex-wrap gap-2 mb-4">
+        <button onClick={onClose} style={{ position:"absolute",top:14,right:14,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",width:32,height:32,borderRadius:8,cursor:"pointer",fontSize:16 }}>✕</button>
+        <div style={{ marginBottom:18,paddingRight:40 }}>
+          <div style={{ display:"flex",flexWrap:"wrap",gap:6,marginBottom:12 }}>
             <span style={{ fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,background:`${accent}15`,color:accent,border:`1px solid ${accent}30` }}>{scholarship.type}</span>
             <span style={{ fontSize:11,padding:"4px 10px",borderRadius:20,background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.45)",border:"1px solid rgba(255,255,255,0.1)" }}>📍 {scholarship.region}</span>
             {scholarship.deadline && <span style={{ fontSize:11,padding:"4px 10px",borderRadius:20,background:"rgba(239,68,68,0.1)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)" }}>⏰ {scholarship.deadline}</span>}
           </div>
-          <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:"white",margin:"0 0 6px",lineHeight:1.3 }}>{scholarship.name}</h2>
-          <p style={{ fontSize:14,color:"rgba(255,255,255,0.45)",margin:"0 0 16px" }}>{scholarship.institution}</p>
-          <div style={{ fontSize:32,fontWeight:900,color:accent,marginBottom:16 }}>{scholarship.amount} <span style={{ fontSize:14,fontWeight:400,color:"rgba(255,255,255,0.3)" }}>per year</span></div>
-          <p style={{ fontSize:14,color:"rgba(255,255,255,0.55)",lineHeight:1.7,margin:"0 0 20px" }}>{scholarship.description}</p>
+          <h2 style={{ fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:900,color:"white",margin:"0 0 6px",lineHeight:1.3 }}>{scholarship.name}</h2>
+          <p style={{ fontSize:13,color:"rgba(255,255,255,0.45)",margin:"0 0 12px" }}>{scholarship.institution}</p>
+          <div style={{ fontSize:28,fontWeight:900,color:accent,marginBottom:12 }}>{scholarship.amount} <span style={{ fontSize:13,fontWeight:400,color:"rgba(255,255,255,0.3)" }}>per year</span></div>
+          <p style={{ fontSize:13,color:"rgba(255,255,255,0.55)",lineHeight:1.7,margin:"0 0 16px" }}>{scholarship.description}</p>
         </div>
-
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16 }}>
           {[{label:"Eligibility",val:scholarship.eligibility},{label:"GPA Required",val:scholarship.gpa},{label:"Opens",val:scholarship.opens},{label:"Source",val:scholarship.source}].map(item=>(
-            <div key={item.label}><div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:"rgba(255,255,255,0.25)",marginBottom:4 }}>{item.label}</div><div style={{ fontSize:13,fontWeight:500,color:"white" }}>{item.val||"—"}</div></div>
+            <div key={item.label}><div style={{ fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:"rgba(255,255,255,0.25)",marginBottom:3 }}>{item.label}</div><div style={{ fontSize:13,fontWeight:500,color:"white" }}>{item.val||"—"}</div></div>
           ))}
         </div>
-
-        <div className="flex flex-col gap-3">
+        <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
           <a href={scholarship.url} target="_blank" rel="noopener noreferrer" style={{ display:"block",textAlign:"center",padding:"13px",borderRadius:12,background:accent,color:"#0a0f1e",fontSize:14,fontWeight:700,textDecoration:"none" }}>Apply Now →</a>
-          <div className="flex gap-3">
-            <button onClick={()=>onSave(scholarship)} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:isSaved?"rgba(212,175,55,0.15)":"rgba(255,255,255,0.05)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",fontSize:13,fontWeight:600 }}>
-              {isSaved?"★ Saved":"☆ Save"}
-            </button>
-            {isPro ? (
-              <button onClick={()=>onEssay(scholarship)} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37",fontSize:13,fontWeight:600 }}>✍ Draft Essay</button>
-            ) : (
-              <button onClick={()=>onUpgrade("monthly")} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37",fontSize:13,fontWeight:600 }}>✍ Essay — Upgrade</button>
-            )}
+          <div style={{ display:"flex",gap:10 }}>
+            <button onClick={()=>onSave(scholarship)} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:isSaved?"rgba(212,175,55,0.15)":"rgba(255,255,255,0.05)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",fontSize:13,fontWeight:600 }}>{isSaved?"★ Saved":"☆ Save"}</button>
+            {isPro
+              ? <button onClick={()=>onEssay(scholarship)} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37",fontSize:13,fontWeight:600 }}>✍ Draft Essay</button>
+              : <button onClick={()=>onUpgrade("monthly")} style={{ flex:1,padding:11,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37",fontSize:13,fontWeight:600 }}>✍ Essay — Upgrade</button>
+            }
           </div>
         </div>
-
         {!isPro && (
-          <div style={{ marginTop:16,padding:"12px 16px",borderRadius:10,background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
+          <div style={{ marginTop:14,padding:"12px 14px",borderRadius:10,background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
             <p style={{ fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.6,margin:0 }}>
-              <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — paste this scholarship's essay prompt and get an AI-written first draft tailored to your background and goals. Available with <button onClick={()=>onUpgrade("monthly")} style={{background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontSize:12,fontWeight:700,padding:0,textDecoration:"underline"}}>Pro ($3.99/mo)</button>.
+              <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — paste this scholarship's essay prompt and get an AI-written first draft tailored to your background. Available with <button onClick={()=>onUpgrade("monthly")} style={{background:"none",border:"none",color:"#d4af37",cursor:"pointer",fontSize:12,fontWeight:700,padding:0,textDecoration:"underline"}}>Pro ($3.99/mo)</button>.
             </p>
           </div>
         )}
@@ -375,6 +320,7 @@ function DeeplinkModal({ scholarship, onClose, onSave, savedIds, onEssay, isPro,
   );
 }
 
+// ─── Scholarship Card ─────────────────────────────────────────────────────────
 function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro }) {
   const [expanded, setExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -387,77 +333,69 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro
   return (
     <div onClick={()=>setExpanded(!expanded)} className="rounded-2xl border cursor-pointer overflow-hidden"
       style={{ opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(24px)",transition:"all 0.5s ease",background:expanded?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",borderColor:expanded?`${accent}40`:"rgba(255,255,255,0.07)",boxShadow:expanded?`0 0 40px ${accent}12`:"none" }}>
-      <div className="p-6">
-        <div className="flex items-start gap-4">
+      <div className="p-4 sm:p-6">
+        <div className="flex items-start gap-3">
           {showMatch && s.matchScore && <MatchRing score={s.matchScore} />}
-          <div className="flex-1">
-            <div className="flex flex-wrap gap-2 mb-3">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background:`${accent}15`,color:accent,border:`1px solid ${accent}30` }}>{s.type}</span>
-              <span className="text-xs px-2.5 py-1 rounded-full" style={{ background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.45)",border:"1px solid rgba(255,255,255,0.1)" }}>📍 {s.region}</span>
-              {s.deadline&&<span className="text-xs px-2.5 py-1 rounded-full" style={{ background:"rgba(239,68,68,0.1)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)" }}>⏰ {s.deadline}</span>}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background:`${accent}15`,color:accent,border:`1px solid ${accent}30` }}>{s.type}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.45)",border:"1px solid rgba(255,255,255,0.1)" }}>📍 {s.region}</span>
+              {s.deadline&&<span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(239,68,68,0.1)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)" }}>⏰ {s.deadline}</span>}
             </div>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-display text-lg font-bold text-white mb-1 leading-tight">{s.name}</h3>
-                <p className="text-sm" style={{ color:"rgba(255,255,255,0.4)" }}>{s.institution}</p>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3 className="font-display text-base sm:text-lg font-bold text-white mb-0.5 leading-tight">{s.name}</h3>
+                <p className="text-xs sm:text-sm" style={{ color:"rgba(255,255,255,0.4)" }}>{s.institution}</p>
               </div>
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <div className="font-display text-2xl font-black" style={{ color:accent }}>{s.amount}</div>
-                <button onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                  style={{ background:isSaved?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.06)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",cursor:"pointer" }}>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <div className="font-display text-xl sm:text-2xl font-black" style={{ color:accent }}>{s.amount}</div>
+                <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold"
+                  style={{ background:isSaved?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.06)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",cursor:"pointer",whiteSpace:"nowrap" }}>
                   {saving?"...":(isSaved?"★ Saved":"☆ Save")}
                 </button>
               </div>
             </div>
-            <p className="text-sm mt-3 leading-relaxed" style={{ color:"rgba(255,255,255,0.5)" }}>{s.description}</p>
+            <p className="text-xs sm:text-sm mt-2 leading-relaxed" style={{ color:"rgba(255,255,255,0.5)" }}>{s.description}</p>
             {showMatch && s.matchReason && (
-              <div className="mt-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.15)" }}>
-                <span style={{ fontSize:12,marginTop:1 }}>✦</span>
+              <div className="mt-2 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.15)" }}>
+                <span style={{ fontSize:11,marginTop:1 }}>✦</span>
                 <p className="text-xs leading-relaxed" style={{ color:"rgba(74,222,128,0.9)" }}>{s.matchReason}</p>
               </div>
             )}
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5" style={{ color:accent }}>
+        <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1" style={{ color:accent }}>
             <span className="text-xs font-semibold">{expanded?"Hide details":"View details & apply"}</span>
             <span className="text-xs" style={{ display:"inline-block",transform:expanded?"rotate(180deg)":"none",transition:"transform 0.3s" }}>▼</span>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Share / deeplink button */}
+          <div className="flex items-center gap-1.5">
             <ShareButton scholarship={s} />
-            {/* Essay CTA */}
             {onEssay && (
               isPro ? (
-                <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"rgba(212,175,55,0.12)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>
-                  ✍ Draft Essay
-                </button>
+                <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",background:"rgba(212,175,55,0.12)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37",whiteSpace:"nowrap" }}>✍ Draft Essay</button>
               ) : (
-                <button onClick={handleEssay} title="Upgrade to Pro to draft a tailored application essay for this scholarship" style={{ display:"flex",alignItems:"center",gap:6,padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.35)" }}>
-                  ✍ Essay — Pro only
-                </button>
+                <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.35)",whiteSpace:"nowrap" }}>✍ Essay <span style={{ fontSize:9,padding:"1px 4px",borderRadius:4,background:"rgba(212,175,55,0.15)",color:"#d4af37",fontWeight:700 }}>Pro</span></button>
               )
             )}
           </div>
         </div>
       </div>
       {expanded && (
-        <div className="px-6 pb-6 pt-2" style={{ borderTop:"1px solid rgba(255,255,255,0.06)" }}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <div className="px-4 sm:px-6 pb-5 pt-2" style={{ borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             {[{label:"Eligibility",val:s.eligibility},{label:"GPA Required",val:s.gpa},{label:"Opens",val:s.opens},{label:"Source",val:s.source}].map(item=>(
               <div key={item.label}><div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"rgba(255,255,255,0.25)" }}>{item.label}</div><div className="text-sm font-medium text-white">{item.val||"—"}</div></div>
             ))}
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold hover:opacity-80 transition-opacity" style={{ background:accent,color:"#0a0f1e" }}>Apply Now →</a>
+          <div className="flex flex-wrap gap-2">
+            <a href={s.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold hover:opacity-80 transition-opacity" style={{ background:accent,color:"#0a0f1e" }}>Apply Now →</a>
             {onEssay && isPro && (
-              <button onClick={handleEssay} style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"10px 18px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>
-                ✍ Draft Application Essay
-              </button>
+              <button onClick={handleEssay} style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"10px 16px",borderRadius:12,fontSize:13,fontWeight:700,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>✍ Draft Application Essay</button>
             )}
             {onEssay && !isPro && (
-              <button onClick={handleEssay} style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"10px 18px",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.4)" }}>
-                ✍ AI Essay Draft <span style={{ fontSize:11,padding:"2px 7px",borderRadius:5,background:"rgba(212,175,55,0.15)",color:"#d4af37",marginLeft:2,fontWeight:700 }}>Pro</span>
+              <button onClick={handleEssay} style={{ display:"inline-flex",alignItems:"center",gap:6,padding:"10px 16px",borderRadius:12,fontSize:13,fontWeight:600,cursor:"pointer",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.4)" }}>
+                ✍ AI Essay Draft <span style={{ fontSize:11,padding:"2px 6px",borderRadius:5,background:"rgba(212,175,55,0.15)",color:"#d4af37",marginLeft:2,fontWeight:700 }}>Pro</span>
               </button>
             )}
           </div>
@@ -477,48 +415,45 @@ function BlurGate({ onUpgrade, loading, topScholarship }) {
   const accent = topScholarship ? (TYPE_COLORS[topScholarship.type] || "#d4af37") : "#d4af37";
   return (
     <div className="mt-4">
-      {/* Best hidden scholarship — teaser card */}
       {topScholarship && (
-        <div style={{ marginBottom: 0, borderRadius:"16px 16px 0 0", overflow:"hidden", border:"1px solid rgba(212,175,55,0.3)", borderBottom:"none", background:"rgba(255,255,255,0.04)", padding:"18px 24px", position:"relative" }}>
+        <div style={{ borderRadius:"16px 16px 0 0",overflow:"hidden",border:"1px solid rgba(212,175,55,0.3)",borderBottom:"none",background:"rgba(255,255,255,0.04)",padding:"16px 20px",position:"relative" }}>
           <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${accent},transparent)` }} />
-          <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:10 }}>
-            <span style={{ fontSize:11,fontWeight:700,color:"#d4af37",textTransform:"uppercase",letterSpacing:"0.1em" }}>✦ Best Result — Locked</span>
-          </div>
+          <div style={{ fontSize:11,fontWeight:700,color:"#d4af37",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8 }}>✦ Best Result — Locked</div>
           <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:12 }}>
             <div style={{ flex:1,filter:"blur(5px)",userSelect:"none",pointerEvents:"none" }}>
-              <div style={{ fontSize:16,fontWeight:700,color:"white",marginBottom:2 }}>{topScholarship.name}</div>
-              <div style={{ fontSize:13,color:"rgba(255,255,255,0.4)" }}>{topScholarship.institution}</div>
-              {topScholarship.matchScore && <div style={{ fontSize:12,color:"#4ade80",marginTop:4,fontWeight:600 }}>{topScholarship.matchScore}% match</div>}
+              <div style={{ fontSize:15,fontWeight:700,color:"white",marginBottom:2 }}>{topScholarship.name}</div>
+              <div style={{ fontSize:12,color:"rgba(255,255,255,0.4)" }}>{topScholarship.institution}</div>
+              {topScholarship.matchScore && <div style={{ fontSize:12,color:"#4ade80",marginTop:3,fontWeight:600 }}>{topScholarship.matchScore}% match</div>}
             </div>
-            <div style={{ fontSize:24,fontWeight:900,color:accent,filter:"blur(5px)",userSelect:"none",pointerEvents:"none",flexShrink:0 }}>{topScholarship.amount}</div>
+            <div style={{ fontSize:22,fontWeight:900,color:accent,filter:"blur(5px)",userSelect:"none",pointerEvents:"none",flexShrink:0 }}>{topScholarship.amount}</div>
           </div>
         </div>
       )}
-      <div className="relative rounded-2xl overflow-hidden" style={{ border:"1px solid rgba(212,175,55,0.25)", borderRadius: topScholarship ? "0 0 16px 16px" : 16 }}>
+      <div className="relative rounded-2xl overflow-hidden" style={{ border:"1px solid rgba(212,175,55,0.25)",borderRadius:topScholarship?"0 0 16px 16px":16 }}>
         <div className="absolute inset-0 z-10" style={{ background:"linear-gradient(to bottom,rgba(6,11,24,0) 0%,rgba(6,11,24,0.7) 35%,rgba(6,11,24,0.98) 65%)",pointerEvents:"none" }} />
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-10 px-6 text-center">
-          <div style={{ width:48,height:48,borderRadius:"50%",background:"rgba(212,175,55,0.15)",border:"1px solid rgba(212,175,55,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,marginBottom:16 }}>🔒</div>
-          <h3 className="font-display text-2xl font-bold text-white mb-2">More scholarships found</h3>
-        <p className="text-sm mb-2 max-w-sm" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results, unlimited searches, and the <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong> — AI-written application drafts for every scholarship.</p>
-        <p className="text-xs mb-5 max-w-xs" style={{ color:"rgba(255,255,255,0.3)" }}>One subscription. One scholarship win could pay for years of access.</p>
-        <div className="flex gap-3 mb-4 w-full max-w-xs">
-          <button onClick={()=>onUpgrade("monthly")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold border-none cursor-pointer" style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / mo"}</button>
-          <button onClick={()=>onUpgrade("annual")} disabled={loading} className="flex-1 rounded-xl py-3 px-4 text-sm font-bold cursor-pointer" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / yr · Save 25%"}</button>
-        </div>
-        <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure payment via Stripe</p>
-      </div>
-      <div className="p-4 flex flex-col gap-3" style={{ pointerEvents:"none" }}>
-        {[1,2,3].map(i=>(
-          <div key={i} className="rounded-xl p-5" style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",filter:"blur(3px)" }}>
-            <div className="flex justify-between items-start mb-3">
-              <div><div style={{ height:12,width:96,borderRadius:4,background:"rgba(212,175,55,0.3)",marginBottom:8 }} /><div style={{ height:20,width:208,borderRadius:4,background:"rgba(255,255,255,0.15)",marginBottom:4 }} /><div style={{ height:12,width:144,borderRadius:4,background:"rgba(255,255,255,0.08)" }} /></div>
-              <div style={{ height:28,width:80,borderRadius:6,background:"rgba(212,175,55,0.25)" }} />
-            </div>
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-end pb-8 px-4 text-center">
+          <div style={{ width:44,height:44,borderRadius:"50%",background:"rgba(212,175,55,0.15)",border:"1px solid rgba(212,175,55,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,marginBottom:12 }}>🔒</div>
+          <h3 className="font-display text-xl font-bold text-white mb-2">More scholarships found</h3>
+          <p className="text-sm mb-2 max-w-xs" style={{ color:"rgba(255,255,255,0.5)" }}>Unlock all results, unlimited searches, and the <strong style={{color:"#d4af37"}}>✍ Essay Assistant</strong>.</p>
+          <p className="text-xs mb-4" style={{ color:"rgba(255,255,255,0.3)" }}>One win could pay for years of access.</p>
+          <div style={{ display:"flex",gap:10,marginBottom:12,width:"100%",maxWidth:280 }}>
+            <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:"11px 8px",borderRadius:10,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:13,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / mo"}</button>
+            <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:"11px 8px",borderRadius:10,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:13,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / yr"}</button>
           </div>
-        ))}
+          <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure via Stripe</p>
+        </div>
+        <div className="p-4 flex flex-col gap-3" style={{ pointerEvents:"none" }}>
+          {[1,2,3].map(i=>(
+            <div key={i} className="rounded-xl p-4" style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",filter:"blur(3px)" }}>
+              <div className="flex justify-between items-start mb-3">
+                <div><div style={{ height:10,width:80,borderRadius:4,background:"rgba(212,175,55,0.3)",marginBottom:8 }} /><div style={{ height:16,width:160,borderRadius:4,background:"rgba(255,255,255,0.15)",marginBottom:4 }} /><div style={{ height:10,width:120,borderRadius:4,background:"rgba(255,255,255,0.08)" }} /></div>
+                <div style={{ height:24,width:64,borderRadius:6,background:"rgba(212,175,55,0.25)" }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-  </div>
   );
 }
 
@@ -546,72 +481,61 @@ function ScholarProfileForm({ existing, onSubmit, onCancel, loading }) {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(existing || {});
   const [errors, setErrors] = useState({});
-
   const currentStep = STEPS[step];
   const set = (key, val) => { setForm(f=>({...f,[key]:val})); setErrors(e=>({...e,[key]:""})); };
-
   const validate = () => {
     const errs = {};
     currentStep.fields.forEach(f => { if (f.required && !form[f.key]?.trim()) errs[f.key] = "This field is required"; });
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
-
   const next = () => { if (validate()) setStep(s=>s+1); };
   const back = () => setStep(s=>s-1);
   const submit = () => { if (validate()) onSubmit(form); };
-
   const inp = (extra={}) => ({ width:"100%",padding:"12px 16px",borderRadius:10,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box",...extra });
-
   return (
     <div>
-      {/* Step indicators */}
-      <div className="flex flex-wrap items-center gap-3 mb-8">
+      <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:28,flexWrap:"wrap" }}>
         {STEPS.map((s,i) => (
-          <div key={s.id} className="flex items-center gap-2">
-            <div style={{ width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,
+          <div key={s.id} style={{ display:"flex",alignItems:"center",gap:6 }}>
+            <div style={{ width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0,
               background:i<step?"rgba(74,222,128,0.2)":i===step?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.05)",
               border:`2px solid ${i<step?"#4ade80":i===step?"#d4af37":"rgba(255,255,255,0.1)"}`,
               color:i<step?"#4ade80":i===step?"#d4af37":"rgba(255,255,255,0.3)" }}>
               {i<step?"✓":s.icon}
             </div>
-            <span className="text-xs font-semibold hidden sm:block" style={{ color:i===step?"#d4af37":"rgba(255,255,255,0.3)" }}>{s.label}</span>
-            {i<STEPS.length-1 && <div style={{ width:24,height:1,background:i<step?"rgba(74,222,128,0.4)":"rgba(255,255,255,0.1)",marginLeft:4 }} />}
+            <span style={{ fontSize:12,fontWeight:600,color:i===step?"#d4af37":"rgba(255,255,255,0.3)" }} className="hidden sm:inline">{s.label}</span>
+            {i<STEPS.length-1 && <div style={{ width:20,height:1,background:i<step?"rgba(74,222,128,0.4)":"rgba(255,255,255,0.1)",marginLeft:2 }} />}
           </div>
         ))}
       </div>
-
-      <h3 className="font-display text-xl font-bold text-white mb-6">{currentStep.title}</h3>
-
-      <div className="flex flex-col gap-5">
+      <h3 className="font-display text-xl font-bold text-white mb-5">{currentStep.title}</h3>
+      <div className="flex flex-col gap-4">
         {currentStep.fields.map(field => (
           <div key={field.key}>
             <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.4)" }}>
               {field.label}{field.required&&<span style={{ color:"#d4af37" }}> *</span>}
             </label>
             {field.type==="select" ? (
-              <select value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} style={{ ...inp(), appearance:"none" }}>
+              <select value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} style={{ ...inp(),appearance:"none" }}>
                 <option value="">Select...</option>
                 {field.options.map(o=><option key={o} value={o}>{o}</option>)}
               </select>
             ) : field.type==="textarea" ? (
-              <textarea value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} rows={3}
-                style={{ ...inp(),resize:"vertical",fontFamily:"inherit" }} />
+              <textarea value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} rows={3} style={{ ...inp(),resize:"vertical",fontFamily:"inherit" }} />
             ) : (
-              <input type="text" value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} style={inp()}
-                onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} />
+              <input type="text" value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} style={inp()} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} />
             )}
             {errors[field.key] && <p style={{ color:"#fca5a5",fontSize:12,marginTop:4 }}>{errors[field.key]}</p>}
           </div>
         ))}
       </div>
-
-      <div className="flex gap-3 mt-8">
-        {step > 0 && <button onClick={back} style={{ flex:1,padding:13,borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:14,fontWeight:600,cursor:"pointer" }}>← Back</button>}
-        {onCancel && step===0 && <button onClick={onCancel} style={{ flex:1,padding:13,borderRadius:12,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.4)",fontSize:14,cursor:"pointer" }}>Cancel</button>}
+      <div className="flex gap-3 mt-7">
+        {step > 0 && <button onClick={back} style={{ flex:1,padding:12,borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:14,fontWeight:600,cursor:"pointer" }}>← Back</button>}
+        {onCancel && step===0 && <button onClick={onCancel} style={{ flex:1,padding:12,borderRadius:12,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.4)",fontSize:14,cursor:"pointer" }}>Cancel</button>}
         {step < STEPS.length-1
-          ? <button onClick={next} style={{ flex:2,padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:14,fontWeight:700,cursor:"pointer" }}>Continue →</button>
-          : <button onClick={submit} disabled={loading} style={{ flex:2,padding:13,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1 }}>{loading?"Finding your matches...":"✦ Find My Best Matches"}</button>
+          ? <button onClick={next} style={{ flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:14,fontWeight:700,cursor:"pointer" }}>Continue →</button>
+          : <button onClick={submit} disabled={loading} style={{ flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1 }}>{loading?"Finding your matches...":"✦ Find My Best Matches"}</button>
         }
       </div>
     </div>
@@ -624,7 +548,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
-  const [matchPhase, setMatchPhase] = useState("idle"); // idle | form | searching | results
+  const [matchPhase, setMatchPhase] = useState("idle");
   const [matchResults, setMatchResults] = useState([]);
   const [matchError, setMatchError] = useState("");
   const [matchLoading, setMatchLoading] = useState(false);
@@ -663,147 +587,148 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
     finally { clearInterval(intervalRef.current); setMatchLoading(false); }
   };
 
-  const tabStyle = (t) => ({ padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,cursor:"pointer",border:"none",background:tab===t?"rgba(212,175,55,0.15)":"transparent",color:tab===t?"#d4af37":"rgba(255,255,255,0.4)",borderBottom:tab===t?"2px solid #d4af37":"2px solid transparent" });
+  // ── Mobile-friendly tabs ──────────────────────────────────────────────────
+  const tabStyle = (t) => ({
+    flex:1, padding:"10px 6px", borderRadius:8, fontSize:12, fontWeight:600,
+    cursor:"pointer", border:"none", textAlign:"center",
+    background:tab===t?"rgba(212,175,55,0.15)":"transparent",
+    color:tab===t?"#d4af37":"rgba(255,255,255,0.4)",
+    borderBottom:tab===t?"2px solid #d4af37":"2px solid transparent",
+    whiteSpace:"nowrap",
+  });
 
   return (
     <div className="animate-fade-up">
       {essayTarget && <EssayModal scholarship={essayTarget} userProfile={user?.scholarProfile} onClose={()=>setEssayTarget(null)} />}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <button onClick={onBack} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13,marginBottom:8,padding:0 }}>← Back to search</button>
-          <h2 className="font-display text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>My Profile</h2>
-          <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.4)" }}>{user.email}</p>
+          <button onClick={onBack} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13,marginBottom:6,padding:0 }}>← Back</button>
+          <h2 className="font-display text-2xl sm:text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>My Profile</h2>
+          <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.4)" }}>{user.email}</p>
         </div>
         {user.isPro
-          ? <div className="px-4 py-2 rounded-xl text-xs font-bold" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>✦ Pro Member</div>
-          : <button onClick={()=>onUpgrade("monthly")} disabled={stripeLoading} className="gold-btn px-4 py-2 rounded-xl text-xs font-bold">Upgrade to Pro</button>}
+          ? <div className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>✦ Pro</div>
+          : <button onClick={()=>onUpgrade("monthly")} disabled={stripeLoading} className="gold-btn px-3 py-2 rounded-xl text-xs font-bold">Upgrade</button>}
       </div>
 
       {!loading && profile && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label:"Searches Used", value:profile.searchCount, sub:user.isPro?"Unlimited":`of ${profile.searchLimit} free` },
-            { label:"Saved Scholarships", value:profile.savedScholarships?.length||0, sub:"across all searches" },
-            { label:"Account Type", value:user.isPro?"Pro ✦":"Free", sub:user.isPro?"All features unlocked":"1 free search" },
+            { label:"Searches", value:profile.searchCount, sub:user.isPro?"Unlimited":`of ${profile.searchLimit}` },
+            { label:"Saved", value:profile.savedScholarships?.length||0, sub:"scholarships" },
+            { label:"Plan", value:user.isPro?"Pro ✦":"Free", sub:user.isPro?"Unlocked":"1 search" },
           ].map(stat=>(
-            <div key={stat.label} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
-              <div className="font-display text-3xl font-black mb-1" style={{ color:"#d4af37" }}>{stat.value}</div>
-              <div className="text-sm font-semibold text-white mb-0.5">{stat.label}</div>
+            <div key={stat.label} className="rounded-xl p-3 sm:p-5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
+              <div className="font-display text-2xl sm:text-3xl font-black mb-0.5" style={{ color:"#d4af37" }}>{stat.value}</div>
+              <div className="text-xs sm:text-sm font-semibold text-white">{stat.label}</div>
               <div className="text-xs" style={{ color:"rgba(255,255,255,0.35)" }}>{stat.sub}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",width:"fit-content" }}>
-        <button style={tabStyle("searches")} onClick={()=>setTab("searches")}>🕐 Recent Searches</button>
+      {/* Tabs — full width on mobile, no text wrapping */}
+      <div style={{ display:"flex",gap:4,marginBottom:20,padding:4,borderRadius:12,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
+        <button style={tabStyle("searches")} onClick={()=>setTab("searches")}>🕐 Searches</button>
         <button style={tabStyle("saved")} onClick={()=>setTab("saved")}>★ Saved</button>
         <button style={tabStyle("discover")} onClick={()=>{setTab("discover");if(matchPhase==="idle"&&!profile?.user?.scholarProfile)setMatchPhase("form");}}>✦ Best Match</button>
       </div>
 
       {loading ? <div style={{ color:"rgba(255,255,255,0.3)",fontSize:14,padding:"40px 0",textAlign:"center" }}>Loading...</div> : (
         <>
-          {/* Recent Searches */}
           {tab==="searches" && (
             !profile.recentSearches?.length
               ? <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}><div style={{ fontSize:32,marginBottom:12 }}>🔍</div><p style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>No searches yet.</p></div>
               : <div className="flex flex-col gap-4">
                   {profile.recentSearches.map((search,i)=>(
-                    <div key={i} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
+                    <div key={i} className="rounded-2xl p-4 sm:p-5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <div className="flex flex-wrap gap-2 mb-2">
+                          <div className="flex flex-wrap gap-1.5 mb-2">
                             {search.isBestMatch && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background:"rgba(212,175,55,0.15)",color:"#d4af37",border:"1px solid rgba(212,175,55,0.3)" }}>✦ Best Match</span>}
                             {search.query.type&&!search.isBestMatch&&<span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background:"rgba(212,175,55,0.1)",color:"#d4af37" }}>{search.query.type}</span>}
                             {search.query.university&&<span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.5)" }}>🎓 {search.query.university}</span>}
                             {search.query.region&&<span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(255,255,255,0.07)",color:"rgba(255,255,255,0.5)" }}>📍 {search.query.region}</span>}
                           </div>
-                          <p className="text-xs" style={{ color:"rgba(255,255,255,0.25)" }}>{new Date(search.searchedAt).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})}</p>
+                          <p className="text-xs" style={{ color:"rgba(255,255,255,0.25)" }}>{new Date(search.searchedAt).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}</p>
                         </div>
-                        <div className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background:"rgba(74,222,128,0.1)",color:"#4ade80",border:"1px solid rgba(74,222,128,0.2)" }}>{search.results?.length||0} results</div>
+                        <div className="text-xs font-semibold px-2 py-1 rounded-full shrink-0" style={{ background:"rgba(74,222,128,0.1)",color:"#4ade80",border:"1px solid rgba(74,222,128,0.2)" }}>{search.results?.length||0} results</div>
                       </div>
-                      <div className="flex flex-col gap-2 mt-3">
+                      <div className="flex flex-col gap-2 mt-2">
                         {(search.results||[]).slice(0,3).map((s,j)=>(
-                          <div key={j} className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)" }}>
-                            <div><div className="text-sm font-semibold text-white">{s.name}</div><div className="text-xs" style={{ color:"rgba(255,255,255,0.35)" }}>{s.institution}</div></div>
-                            <div className="flex items-center gap-3">
-                              {s.matchScore&&<span className="text-xs font-bold" style={{ color:"#4ade80" }}>{s.matchScore}% match</span>}
+                          <div key={j} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.05)" }}>
+                            <div className="min-w-0 flex-1 pr-2"><div className="text-sm font-semibold text-white truncate">{s.name}</div><div className="text-xs truncate" style={{ color:"rgba(255,255,255,0.35)" }}>{s.institution}</div></div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {s.matchScore&&<span className="text-xs font-bold" style={{ color:"#4ade80" }}>{s.matchScore}%</span>}
                               <span className="font-display text-sm font-bold" style={{ color:TYPE_COLORS[s.type]||"#d4af37" }}>{s.amount}</span>
                             </div>
                           </div>
                         ))}
-                        {(search.results||[]).length>3&&<p className="text-xs text-center mt-1" style={{ color:"rgba(255,255,255,0.25)" }}>+{search.results.length-3} more results</p>}
+                        {(search.results||[]).length>3&&<p className="text-xs text-center mt-1" style={{ color:"rgba(255,255,255,0.25)" }}>+{search.results.length-3} more</p>}
                       </div>
                     </div>
                   ))}
                 </div>
           )}
 
-          {/* Saved */}
           {tab==="saved" && (
             !profile.savedScholarships?.length
               ? <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}><div style={{ fontSize:32,marginBottom:12 }}>★</div><p style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>No saved scholarships yet.</p></div>
               : <div className="flex flex-col gap-4">{profile.savedScholarships.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={!!s.matchScore} onEssay={s=>{if(!user.isPro){onUpgrade&&onUpgrade("monthly");}else{setEssayTarget(s);}}} isPro={user.isPro} />)}</div>
           )}
 
-          {/* Best Match */}
           {tab==="discover" && (
             <div>
               {!user.isPro && (
-                <div className="rounded-2xl p-8 text-center mb-6" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.2)" }}>
-                  <div style={{ fontSize:32,marginBottom:12 }}>✦</div>
+                <div className="rounded-2xl p-6 sm:p-8 text-center mb-6" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.2)" }}>
+                  <div style={{ fontSize:28,marginBottom:10 }}>✦</div>
                   <h3 className="font-display text-xl font-bold text-white mb-2">Pro Feature</h3>
-                  <p className="text-sm mb-5" style={{ color:"rgba(255,255,255,0.45)",maxWidth:320,margin:"0 auto 20px" }}>Find Best Match uses AI to rank scholarships by your personal win probability. Upgrade to unlock.</p>
+                  <p className="text-sm mb-5" style={{ color:"rgba(255,255,255,0.45)",maxWidth:300,margin:"0 auto 16px" }}>AI ranks scholarships by your personal win probability.</p>
                   <button onClick={()=>onUpgrade("monthly")} disabled={stripeLoading} className="gold-btn px-6 py-3 rounded-xl text-sm font-bold">{stripeLoading?"...":"Upgrade to Pro"}</button>
                 </div>
               )}
-
               {user.isPro && matchPhase==="idle" && (
-                <div className="rounded-2xl p-8" style={{ background:"rgba(212,175,55,0.04)",border:"1px solid rgba(212,175,55,0.15)" }}>
-                  <div style={{ fontSize:32,marginBottom:16 }}>✦</div>
+                <div className="rounded-2xl p-6 sm:p-8" style={{ background:"rgba(212,175,55,0.04)",border:"1px solid rgba(212,175,55,0.15)" }}>
+                  <div style={{ fontSize:28,marginBottom:12 }}>✦</div>
                   <h3 className="font-display text-2xl font-bold text-white mb-2">Find Your Best Match</h3>
-                  <p className="text-sm mb-6" style={{ color:"rgba(255,255,255,0.5)",lineHeight:1.7 }}>Tell us about yourself and our AI will analyse thousands of scholarships, ranking them by how likely you are to qualify and win.</p>
-                  <button onClick={()=>setMatchPhase("form")} className="gold-btn px-6 py-3 rounded-xl text-sm font-bold">Get Started →</button>
-                  {profile?.user?.scholarProfile && (
-                    <button onClick={()=>runMatch(profile.user.scholarProfile)} style={{ marginLeft:12,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.6)",padding:"12px 20px",borderRadius:12,fontSize:13,cursor:"pointer",fontWeight:600 }}>
-                      Re-run with saved profile
-                    </button>
-                  )}
+                  <p className="text-sm mb-5" style={{ color:"rgba(255,255,255,0.5)",lineHeight:1.7 }}>Tell us about yourself and our AI will rank scholarships by how likely you are to qualify and win.</p>
+                  <div style={{ display:"flex",gap:10,flexWrap:"wrap" }}>
+                    <button onClick={()=>setMatchPhase("form")} className="gold-btn px-5 py-3 rounded-xl text-sm font-bold">Get Started →</button>
+                    {profile?.user?.scholarProfile && (
+                      <button onClick={()=>runMatch(profile.user.scholarProfile)} style={{ background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.6)",padding:"12px 16px",borderRadius:12,fontSize:13,cursor:"pointer",fontWeight:600 }}>Re-run saved profile</button>
+                    )}
+                  </div>
                 </div>
               )}
-
               {user.isPro && matchPhase==="form" && (
-                <div className="rounded-2xl p-8" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)" }}>
-                  {matchError && <div style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5",padding:"10px 14px",borderRadius:10,fontSize:13,marginBottom:20 }}>{matchError}</div>}
+                <div className="rounded-2xl p-5 sm:p-8" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)" }}>
+                  {matchError && <div style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5",padding:"10px 14px",borderRadius:10,fontSize:13,marginBottom:18 }}>{matchError}</div>}
                   <ScholarProfileForm existing={profile?.user?.scholarProfile} onSubmit={runMatch} onCancel={()=>setMatchPhase("idle")} loading={matchLoading} />
                 </div>
               )}
-
               {user.isPro && matchPhase==="searching" && (
-                <div className="text-center py-16">
-                  <div style={{ width:64,height:64,borderRadius:20,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,margin:"0 auto 24px",animation:"spin 3s linear infinite" }}>✦</div>
+                <div className="text-center py-12">
+                  <div style={{ width:56,height:56,borderRadius:18,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 20px",animation:"spin 3s linear infinite" }}>✦</div>
                   <h3 className="font-display text-2xl font-black text-white mb-2">Analysing Your Profile</h3>
-                  <p className="text-sm font-medium mb-8" style={{ color:"#d4af37" }}>{matchMsg}</p>
-                  <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
-                    {AGENT_SOURCES.map((a,i)=><div key={i} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(212,175,55,0.1)" }}><span>{a.icon}</span><span className="text-xs" style={{ color:"rgba(255,255,255,0.5)" }}>{a.name}</span><div style={{ marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:"#4ade80",animation:"pulse-dot 1.5s infinite" }} /></div>)}
+                  <p className="text-sm font-medium mb-6" style={{ color:"#d4af37" }}>{matchMsg}</p>
+                  <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto">
+                    {AGENT_SOURCES.map((a,i)=><div key={i} className="rounded-xl px-3 py-2.5 flex items-center gap-2" style={{ background:"rgba(255,255,255,0.03)",border:"1px solid rgba(212,175,55,0.1)" }}><span>{a.icon}</span><span className="text-xs" style={{ color:"rgba(255,255,255,0.5)" }}>{a.name}</span><div style={{ marginLeft:"auto",width:5,height:5,borderRadius:"50%",background:"#4ade80",animation:"pulse-dot 1.5s infinite" }} /></div>)}
                   </div>
                 </div>
               )}
-
               {user.isPro && matchPhase==="results" && (
                 <div>
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-start justify-between mb-5 gap-3">
                     <div>
-                      <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"#d4af37" }}>✦ Best Match Results</div>
-                      <h3 className="font-display text-2xl font-black text-white">Your Top {matchResults.length} Scholarships</h3>
-                      <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.4)" }}>Ranked by personal match score · AI analysed</p>
+                      <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"#d4af37" }}>✦ Best Match Results</div>
+                      <h3 className="font-display text-xl sm:text-2xl font-black text-white">Your Top {matchResults.length}</h3>
+                      <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.4)" }}>Ranked by match score · AI analysed</p>
                     </div>
-                    <button onClick={()=>setMatchPhase("form")} style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",padding:"10px 16px",borderRadius:12,fontSize:13,cursor:"pointer",fontWeight:600 }}>↻ Refine Profile</button>
+                    <button onClick={()=>setMatchPhase("form")} style={{ background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",padding:"8px 12px",borderRadius:10,fontSize:12,cursor:"pointer",fontWeight:600,shrink:0,whiteSpace:"nowrap" }}>↻ Refine</button>
                   </div>
-                  {/* Score legend */}
-                  <div className="flex gap-4 mb-6 flex-wrap">
-                    {[["90–100","#4ade80","Exceptional fit"],["70–89","#d4af37","Strong fit"],["55–69","#fb923c","Good fit"],["<55","#f87171","Partial fit"]].map(([range,color,label])=>(
-                      <div key={range} className="flex items-center gap-2"><div style={{ width:10,height:10,borderRadius:"50%",background:color }} /><span className="text-xs" style={{ color:"rgba(255,255,255,0.4)" }}><span style={{ color:"white",fontWeight:600 }}>{range}</span> — {label}</span></div>
+                  <div className="flex gap-3 mb-5 flex-wrap">
+                    {[["90–100","#4ade80","Exceptional"],["70–89","#d4af37","Strong"],["55–69","#fb923c","Good"],["<55","#f87171","Partial"]].map(([range,color,label])=>(
+                      <div key={range} className="flex items-center gap-1.5"><div style={{ width:8,height:8,borderRadius:"50%",background:color }} /><span className="text-xs" style={{ color:"rgba(255,255,255,0.4)" }}><span style={{ color:"white",fontWeight:600 }}>{range}</span> {label}</span></div>
                     ))}
                   </div>
                   <div className="flex flex-col gap-4">
@@ -848,16 +773,11 @@ export default function App() {
     } else setAuthReady(true);
   }, []);
 
-  // Handle deeplinks: ?s=encoded-scholarship-slug
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const slug = params.get("s");
     if (slug) {
-      try {
-        const scholarship = JSON.parse(atob(decodeURIComponent(slug)));
-        setDeeplinkedScholarship(scholarship);
-        window.history.replaceState({}, "", "/");
-      } catch {}
+      try { const scholarship = JSON.parse(atob(decodeURIComponent(slug))); setDeeplinkedScholarship(scholarship); window.history.replaceState({}, "", "/"); } catch {}
     }
   }, []);
 
@@ -921,37 +841,53 @@ export default function App() {
       {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
       {deeplinkedScholarship && <DeeplinkModal scholarship={deeplinkedScholarship} onClose={()=>setDeeplinkedScholarship(null)} onSave={handleSave} savedIds={savedIds} onEssay={s=>{setDeeplinkedScholarship(null);if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onUpgrade={handleUpgrade} />}
 
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5" style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
-        <div className="flex items-center gap-3 cursor-pointer" onClick={()=>{reset();setPage("home");}}>
-          <div style={{ width:36,height:36,borderRadius:12,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif" }}>K</div>
-          <div>
-            <div className="font-display font-bold text-white text-base" style={{ letterSpacing:"-0.02em" }}>Kaloma</div>
-            <div className="hidden sm:block text-xs font-semibold" style={{ color:"#d4af37",letterSpacing:"0.1em" }}>GLOBAL DISCOVERY</div>
-          </div>
+      {/* ── Nav ── */}
+      <nav style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+        {/* Logo */}
+        <div style={{ display:"flex",alignItems:"center",gap:10,cursor:"pointer" }} onClick={()=>{reset();setPage("home");}}>
+          <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif",flexShrink:0 }}>K</div>
+          <div style={{ fontFamily:"'Playfair Display',serif",fontWeight:700,color:"white",fontSize:16,letterSpacing:"-0.02em" }}>Kaloma</div>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Right side */}
+        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
           {user ? (
             <>
-              {user.isPro&&<div className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37" }}>✦ Pro</div>}
-              {phase!=="idle"&&page==="home"&&<button onClick={reset} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13 }}>← New Search</button>}
-              <button onClick={()=>setPage(page==="profile"?"home":"profile")} style={{ background:page==="profile"?"rgba(212,175,55,0.1)":"rgba(255,255,255,0.05)",border:`1px solid ${page==="profile"?"rgba(212,175,55,0.3)":"rgba(255,255,255,0.08)"}`,color:page==="profile"?"#d4af37":"rgba(255,255,255,0.5)",padding:"8px 14px",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:500 }}>
-                👤 {user.email.split("@")[0]}
+              {/* Profile button — compact on mobile */}
+              <button onClick={()=>setPage(page==="profile"?"home":"profile")}
+                style={{ display:"flex",alignItems:"center",gap:6,background:page==="profile"?"rgba(212,175,55,0.1)":"rgba(255,255,255,0.05)",border:`1px solid ${page==="profile"?"rgba(212,175,55,0.3)":"rgba(255,255,255,0.08)"}`,color:page==="profile"?"#d4af37":"rgba(255,255,255,0.5)",padding:"7px 10px",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:500 }}>
+                <span>👤</span>
+                {/* Show email username on sm+, hide on mobile */}
+                <span style={{ maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }} className="hidden sm:inline">{user.email.split("@")[0]}</span>
+                {user.isPro && <span style={{ fontSize:9,fontWeight:800,color:"#d4af37",background:"rgba(212,175,55,0.2)",border:"1px solid rgba(212,175,55,0.35)",borderRadius:4,padding:"1px 4px",letterSpacing:"0.04em" }}>PRO</span>}
               </button>
-              {!user.isPro&&<button onClick={()=>{setUpgradeReason("general");setShowUpgrade(true);}} disabled={stripeLoading} className="gold-btn px-4 py-2 rounded-xl text-xs font-bold">Upgrade to Pro</button>}
-              <button onClick={logout} style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.3)",padding:"8px 14px",borderRadius:10,cursor:"pointer",fontSize:12 }}>Sign out</button>
+
+              {/* Upgrade — show on mobile only if not pro */}
+              {!user.isPro && (
+                <button onClick={()=>{setUpgradeReason("general");setShowUpgrade(true);}} disabled={stripeLoading}
+                  className="gold-btn rounded-lg text-xs font-bold"
+                  style={{ padding:"7px 10px" }}>
+                  Upgrade
+                </button>
+              )}
+
+              {/* Sign out — icon only on mobile */}
+              <button onClick={logout}
+                style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.3)",padding:"7px 10px",borderRadius:9,cursor:"pointer",fontSize:12 }}>
+                <span className="hidden sm:inline">Sign out</span>
+                <span className="sm:hidden">✕</span>
+              </button>
             </>
           ) : (
             <>
-              <button onClick={()=>setShowAuth(true)} style={{ background:"none",border:"1px solid rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.6)",padding:"8px 16px",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:500 }}>Sign in</button>
-              <button onClick={()=>setShowAuth(true)} className="gold-btn px-4 py-2 rounded-xl text-xs font-bold">Get Started Free</button>
+              <button onClick={()=>setShowAuth(true)} style={{ background:"none",border:"1px solid rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.6)",padding:"7px 14px",borderRadius:9,cursor:"pointer",fontSize:13,fontWeight:500 }}>Sign in</button>
+              <button onClick={()=>setShowAuth(true)} className="gold-btn px-3 py-2 rounded-lg text-xs font-bold">Get Started</button>
             </>
           )}
         </div>
       </nav>
 
-
-      <div className="max-w-4xl mx-auto px-6 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         {page==="profile"&&user && (
           <ProfilePage user={user} onBack={()=>setPage("home")} onUpgrade={handleUpgrade} stripeLoading={stripeLoading} onUserUpdate={(updates)=>setUser(u=>({...u,...updates}))} />
         )}
@@ -960,17 +896,19 @@ export default function App() {
           <>
             {phase==="idle" && (
               <div className="animate-fade-up">
-                <div className="text-center mb-14">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-xs font-semibold tracking-widest uppercase" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>✦ &nbsp;6 agents · 40+ sources · worldwide</div>
-                  <h1 className="font-display font-black text-white mb-5 leading-none" style={{ fontSize:"clamp(38px,7vw,68px)",letterSpacing:"-0.03em" }}>Discover your funding<br /><span className="shimmer-text">the world over.</span></h1>
-                  <p className="text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
+                <div className="text-center mb-10 sm:mb-14">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-xs font-semibold tracking-widest uppercase" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>✦ &nbsp;6 agents · 40+ sources · worldwide</div>
+                  <h1 className="font-display font-black text-white mb-4 leading-none" style={{ fontSize:"clamp(32px,7vw,68px)",letterSpacing:"-0.03em" }}>Discover your funding<br /><span className="shimmer-text">the world over.</span></h1>
+                  <p className="text-sm sm:text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
                 </div>
                 <div className="rounded-2xl p-4 sm:p-8 glass-card">
                   {error&&<div className="mb-4 rounded-xl px-4 py-3 text-sm" style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>}
                   {user&&!user.isPro&&(user.searchCount||0)>=1&&(
-                    <div className="mb-6 rounded-xl px-4 py-3 text-sm flex items-center justify-between" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>
-                      <span>⚠ Free search used. Upgrade for unlimited searches.</span>
-                      <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",border:"none",color:"#0a0f1e",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer" }}>Upgrade</button>
+                    <div className="mb-5 rounded-xl px-4 py-3 text-sm" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <span>⚠ Free search used. Upgrade for unlimited.</span>
+                        <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",border:"none",color:"#0a0f1e",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>Upgrade</button>
+                      </div>
                     </div>
                   )}
                   <ScholarProfileForm
@@ -997,16 +935,14 @@ export default function App() {
                     {user ? (user.isPro?"Unlimited searches · All results unlocked":`${1-(user.searchCount||0)} free search remaining`) : "Free account required · No credit card needed"}
                   </p>
                 </div>
-
-                {/* Feature cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
                   {[
                     { icon:"✦",title:"AI-Matched Results",desc:"Our AI ranks scholarships by your personal profile and win probability." },
                     { icon:"🌍",title:"40+ Global Sources",desc:"Universities, governments, foundations and industry bodies worldwide." },
                     { icon:"★",title:"Save & Track",desc:"Bookmark scholarships and revisit your match history anytime." },
                   ].map(f=>(
-                    <div key={f.title} className="rounded-2xl p-5" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}>
-                      <div style={{ fontSize:24,marginBottom:10 }}>{f.icon}</div>
+                    <div key={f.title} className="rounded-2xl p-4 sm:p-5" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ fontSize:22,marginBottom:8 }}>{f.icon}</div>
                       <div className="text-sm font-bold text-white mb-1">{f.title}</div>
                       <div className="text-xs leading-relaxed" style={{ color:"rgba(255,255,255,0.35)" }}>{f.desc}</div>
                     </div>
@@ -1017,16 +953,16 @@ export default function App() {
 
             {phase==="searching" && (
               <div className="animate-fade-up">
-                <div className="text-center mb-10">
-                  <div style={{ width:56,height:56,borderRadius:16,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 20px",animation:"spin 3s linear infinite" }}>◎</div>
+                <div className="text-center mb-8">
+                  <div style={{ width:52,height:52,borderRadius:14,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,margin:"0 auto 16px",animation:"spin 3s linear infinite" }}>◎</div>
                   <h2 className="font-display text-2xl font-black text-white mb-2">Agents Deployed</h2>
                   <p className="text-sm font-medium" style={{ color:"#d4af37" }}>{loadingMsg}</p>
                 </div>
-                <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.35)" }}>Active Agents ({AGENT_SOURCES.length})</h3>
-                  <div className="flex items-center gap-2"><div style={{ width:6,height:6,borderRadius:"50%",background:"#d4af37",animation:"pulse-dot 1.5s infinite" }} /><span className="text-xs font-semibold" style={{ color:"#d4af37" }}>Searching in parallel</span></div>
+                  <div className="flex items-center gap-2"><div style={{ width:5,height:5,borderRadius:"50%",background:"#d4af37",animation:"pulse-dot 1.5s infinite" }} /><span className="text-xs font-semibold" style={{ color:"#d4af37" }}>Searching in parallel</span></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">{AGENT_SOURCES.map((a,i)=><AgentCard key={i} agent={a} index={i} />)}</div>
+                <div className="grid grid-cols-2 gap-3">{AGENT_SOURCES.map((a,i)=><AgentCard key={i} agent={a} index={i} />)}</div>
               </div>
             )}
 
@@ -1035,20 +971,20 @@ export default function App() {
                 {error
                   ? <div className="rounded-2xl p-6 text-sm" style={{ background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>
                   : <>
-                      <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-start justify-between mb-6 gap-3">
                         <div>
-                          <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"#d4af37" }}>Match complete</div>
-                          <h2 className="font-display text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Matched Scholarships</h2>
-                          <p className="text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
+                          <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"#d4af37" }}>Match complete</div>
+                          <h2 className="font-display text-2xl sm:text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Matched</h2>
+                          <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
                         </div>
-                        <div className="text-xs font-bold px-4 py-2 rounded-xl" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
+                        <div className="text-xs font-bold px-3 py-1.5 rounded-xl shrink-0" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
                       </div>
                       <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} />)}</div>
                       {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} topScholarship={results[FREE_LIMIT]} />
                         : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayScholarship(s)} isPro={user?.isPro} /></div>)}
-                      <div className="mt-10 rounded-2xl p-6 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
+                      <div className="mt-8 rounded-2xl p-5 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
                         <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
-                        <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ &nbsp;New Search</button>
+                        <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ New Search</button>
                       </div>
                     </>}
               </div>
