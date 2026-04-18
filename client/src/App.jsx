@@ -255,6 +255,98 @@ function EssayModal({ scholarship, userProfile, onClose }) {
   );
 }
 
+// ─── Reminder Modal ───────────────────────────────────────────────────────────
+function ReminderModal({ scholarship, onClose, onSave, existingReminder }) {
+  const [dateVal, setDateVal] = useState(() => {
+    if (existingReminder) return existingReminder.deadlineDate.slice(0, 10);
+    // Try to pre-fill from scholarship deadline
+    if (scholarship.deadline) {
+      const d = new Date(scholarship.deadline);
+      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+      // "Mar 31, 2026" style
+      const parsed = new Date(scholarship.deadline);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    }
+    return "";
+  });
+  const [needsManual, setNeedsManual] = useState(!dateVal);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async () => {
+    if (!dateVal) return setError("Please enter the deadline date.");
+    setLoading(true); setError("");
+    try {
+      const res = await api("/api/reminders", {
+        method: "POST",
+        body: JSON.stringify({ scholarship, deadlineDate: dateVal, deadlineStr: scholarship.deadline || dateVal }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error);
+      onSave(data.reminders);
+      onClose();
+    } catch(e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const accent = TYPE_COLORS[scholarship.type] || "#d4af37";
+  const daysUntil = dateVal ? Math.ceil((new Date(dateVal) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+
+  return (
+    <div style={{ position:"fixed",inset:0,zIndex:1100,background:"rgba(0,0,0,0.88)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24 }}>
+      <div style={{ background:"linear-gradient(135deg,#0d1829,#0a1220)",border:"1px solid rgba(212,175,55,0.2)",borderRadius:20,padding:32,width:"100%",maxWidth:440,position:"relative" }}>
+        <button onClick={onClose} style={{ position:"absolute",top:14,right:14,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",width:30,height:30,borderRadius:7,cursor:"pointer",fontSize:15 }}>✕</button>
+
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:11,fontWeight:700,color:"#d4af37",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8 }}>🔔 Set Deadline Reminder</div>
+          <h3 style={{ fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:"white",margin:"0 0 4px",lineHeight:1.3,paddingRight:32 }}>{scholarship.name}</h3>
+          <p style={{ fontSize:13,color:"rgba(255,255,255,0.4)",margin:0 }}>{scholarship.institution}</p>
+        </div>
+
+        {scholarship.deadline && (
+          <div style={{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13 }}>
+            <span style={{ color:"rgba(255,255,255,0.4)" }}>Scholarship deadline: </span>
+            <span style={{ color:"white",fontWeight:600 }}>{scholarship.deadline}</span>
+            {needsManual && <div style={{ color:"#fbbf24",fontSize:11,marginTop:4 }}>⚠ Couldn't parse this date automatically — please enter it below.</div>}
+          </div>
+        )}
+
+        <div style={{ marginBottom:16 }}>
+          <label style={{ display:"block",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:"rgba(255,255,255,0.4)",marginBottom:8 }}>
+            Deadline Date <span style={{ color:"#d4af37" }}>*</span>
+          </label>
+          <input
+            type="date"
+            value={dateVal}
+            onChange={e => setDateVal(e.target.value)}
+            style={{ width:"100%",padding:"12px 14px",borderRadius:10,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box",colorScheme:"dark" }}
+            onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"}
+            onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"}
+          />
+          {daysUntil !== null && daysUntil > 0 && (
+            <p style={{ fontSize:12,color:daysUntil<=7?"#fbbf24":daysUntil<=30?"#d4af37":"rgba(255,255,255,0.4)",marginTop:6 }}>
+              {daysUntil === 1 ? "⚠ Due tomorrow" : `${daysUntil} days from now`}
+            </p>
+          )}
+          {daysUntil !== null && daysUntil <= 0 && (
+            <p style={{ fontSize:12,color:"#f87171",marginTop:6 }}>⚠ This date is in the past</p>
+          )}
+        </div>
+
+        <div style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:18,fontSize:12,color:"rgba(255,255,255,0.4)",lineHeight:1.6 }}>
+          You'll receive email reminders <strong style={{color:"rgba(255,255,255,0.7)"}}>30 days, 7 days, and 1 day</strong> before this deadline.
+        </div>
+
+        {error && <div style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5",padding:"10px 14px",borderRadius:10,fontSize:13,marginBottom:14 }}>{error}</div>}
+
+        <button onClick={save} disabled={loading || !dateVal || daysUntil <= 0} style={{ width:"100%",padding:13,borderRadius:12,border:"none",cursor:loading||!dateVal||daysUntil<=0?"not-allowed":"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:14,fontWeight:700,opacity:loading||!dateVal||daysUntil<=0?0.6:1 }}>
+          {loading ? "Setting reminder..." : "🔔 Set Reminder"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Share Button ─────────────────────────────────────────────────────────────
 function ShareButton({ scholarship }) {
   const [copied, setCopied] = useState(false);
@@ -321,15 +413,17 @@ function DeeplinkModal({ scholarship, onClose, onSave, savedIds, onEssay, isPro,
 }
 
 // ─── Scholarship Card ─────────────────────────────────────────────────────────
-function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro }) {
+function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro, onReminder, reminderIds }) {
   const [expanded, setExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const accent = TYPE_COLORS[s.type] || "#d4af37";
   const isSaved = savedIds?.has(`${s.name}||${s.institution}`);
+  const hasReminder = reminderIds?.has(`${s.name}||${s.institution}`);
   useEffect(() => { const t = setTimeout(()=>setMounted(true),index*80); return ()=>clearTimeout(t); }, []);
   const handleSave = async (e) => { e.stopPropagation(); setSaving(true); await onSave(s); setSaving(false); };
   const handleEssay = (e) => { e.stopPropagation(); onEssay(s); };
+  const handleReminder = (e) => { e.stopPropagation(); onReminder && onReminder(s); };
   return (
     <div onClick={()=>setExpanded(!expanded)} className="rounded-2xl border cursor-pointer overflow-hidden"
       style={{ opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(24px)",transition:"all 0.5s ease",background:expanded?"rgba(255,255,255,0.05)":"rgba(255,255,255,0.03)",borderColor:expanded?`${accent}40`:"rgba(255,255,255,0.07)",boxShadow:expanded?`0 0 40px ${accent}12`:"none" }}>
@@ -371,6 +465,11 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro
           </div>
           <div className="flex items-center gap-1.5">
             <ShareButton scholarship={s} />
+            {onReminder && isPro && (
+              <button onClick={handleReminder} title={hasReminder ? "Reminder set" : "Set deadline reminder"} style={{ display:"flex",alignItems:"center",gap:4,padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",background:hasReminder?"rgba(74,222,128,0.1)":"rgba(255,255,255,0.04)",border:`1px solid ${hasReminder?"rgba(74,222,128,0.3)":"rgba(255,255,255,0.08)"}`,color:hasReminder?"#4ade80":"rgba(255,255,255,0.3)",whiteSpace:"nowrap" }}>
+                {hasReminder ? "🔔 Set" : "🔔"}
+              </button>
+            )}
             {onEssay && (
               isPro ? (
                 <button onClick={handleEssay} style={{ display:"flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",background:"rgba(212,175,55,0.12)",border:"1px solid rgba(212,175,55,0.3)",color:"#d4af37",whiteSpace:"nowrap" }}>✍ Draft Essay</button>
@@ -554,6 +653,9 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
   const [matchLoading, setMatchLoading] = useState(false);
   const [matchMsg, setMatchMsg] = useState("");
   const [essayTarget, setEssayTarget] = useState(null);
+  const [reminderScholarship, setReminderScholarship] = useState(null);
+  const [reminders, setReminders] = useState([]);
+  const [reminderIds, setReminderIds] = useState(new Set());
   const msgIdx = useRef(0); const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -562,6 +664,12 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
       setSavedIds(new Set((data.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
       setLoading(false);
     });
+    if (user.isPro) {
+      api("/api/reminders").then(r=>r.json()).then(data => {
+        setReminders(data.reminders || []);
+        setReminderIds(new Set((data.reminders||[]).map(r => r.id)));
+      });
+    }
   }, []);
 
   const handleSave = async (scholarship) => {
@@ -600,6 +708,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
   return (
     <div className="animate-fade-up">
       {essayTarget && <EssayModal scholarship={essayTarget} userProfile={user?.scholarProfile} onClose={()=>setEssayTarget(null)} />}
+      {reminderScholarship && <ReminderModal scholarship={reminderScholarship} onClose={()=>setReminderScholarship(null)} onSave={r=>{setReminders(r);setReminderIds(new Set(r.map(x=>x.id)));}} />}
       <div className="flex items-center justify-between mb-6">
         <div>
           <button onClick={onBack} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontSize:13,marginBottom:6,padding:0 }}>← Back</button>
@@ -631,6 +740,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
       <div style={{ display:"flex",gap:4,marginBottom:20,padding:4,borderRadius:12,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)" }}>
         <button style={tabStyle("searches")} onClick={()=>setTab("searches")}>🕐 Searches</button>
         <button style={tabStyle("saved")} onClick={()=>setTab("saved")}>★ Saved</button>
+        <button style={tabStyle("reminders")} onClick={()=>setTab("reminders")}>🔔 {reminders.length > 0 ? `Reminders (${reminders.length})` : "Reminders"}</button>
         <button style={tabStyle("discover")} onClick={()=>{setTab("discover");if(matchPhase==="idle"&&!profile?.user?.scholarProfile)setMatchPhase("form");}}>✦ Best Match</button>
       </div>
 
@@ -674,7 +784,67 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
           {tab==="saved" && (
             !profile.savedScholarships?.length
               ? <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}><div style={{ fontSize:32,marginBottom:12 }}>★</div><p style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>No saved scholarships yet.</p></div>
-              : <div className="flex flex-col gap-4">{profile.savedScholarships.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={!!s.matchScore} onEssay={s=>{if(!user.isPro){onUpgrade&&onUpgrade("monthly");}else{setEssayTarget(s);}}} isPro={user.isPro} />)}</div>
+              : <div className="flex flex-col gap-4">{profile.savedScholarships.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={!!s.matchScore} onEssay={s=>{if(!user.isPro){onUpgrade&&onUpgrade("monthly");}else{setEssayTarget(s);}}} isPro={user.isPro} onReminder={s=>setReminderScholarship(s)} reminderIds={reminderIds} />)}</div>
+          )}
+
+          {tab==="reminders" && (
+            <div>
+              {!user.isPro ? (
+                <div className="rounded-2xl p-8 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.2)" }}>
+                  <div style={{ fontSize:28,marginBottom:10 }}>🔔</div>
+                  <h3 className="font-display text-xl font-bold text-white mb-2">Pro Feature</h3>
+                  <p className="text-sm mb-5" style={{ color:"rgba(255,255,255,0.45)",maxWidth:300,margin:"0 auto 16px" }}>Get email reminders 30, 7, and 1 day before scholarship deadlines.</p>
+                  <button onClick={()=>onUpgrade("monthly")} disabled={stripeLoading} className="gold-btn px-6 py-3 rounded-xl text-sm font-bold">Upgrade to Pro</button>
+                </div>
+              ) : !reminders.length ? (
+                <div className="rounded-2xl p-10 text-center" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ fontSize:32,marginBottom:12 }}>🔔</div>
+                  <p className="font-bold text-white mb-2">No reminders set yet</p>
+                  <p style={{ color:"rgba(255,255,255,0.3)",fontSize:13 }}>Click the 🔔 button on any scholarship to set a deadline reminder.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {reminders.sort((a,b)=>new Date(a.deadlineDate)-new Date(b.deadlineDate)).map((reminder, i) => {
+                    const deadline = new Date(reminder.deadlineDate);
+                    const daysLeft = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+                    const urgencyColor = daysLeft <= 1 ? "#f87171" : daysLeft <= 7 ? "#fbbf24" : daysLeft <= 30 ? "#d4af37" : "rgba(255,255,255,0.5)";
+                    const isPast = daysLeft < 0;
+                    return (
+                      <div key={i} className="rounded-2xl p-4 sm:p-5" style={{ background:"rgba(255,255,255,0.03)",border:`1px solid ${isPast?"rgba(255,255,255,0.05)":"rgba(212,175,55,0.15)"}`,opacity:isPast?0.5:1 }}>
+                        <div style={{ display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12 }}>
+                          <div style={{ flex:1,minWidth:0 }}>
+                            <div style={{ fontSize:11,fontWeight:700,color:urgencyColor,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4 }}>
+                              {isPast ? "Passed" : daysLeft === 1 ? "⚠ Due tomorrow" : daysLeft <= 7 ? `⏰ ${daysLeft} days left` : daysLeft <= 30 ? `📅 ${daysLeft} days left` : `🔔 ${daysLeft} days`}
+                            </div>
+                            <div className="text-sm font-bold text-white mb-0.5 truncate">{reminder.scholarship.name}</div>
+                            <div className="text-xs truncate" style={{ color:"rgba(255,255,255,0.4)" }}>{reminder.scholarship.institution}</div>
+                            <div className="text-xs mt-2" style={{ color:"rgba(255,255,255,0.3)" }}>
+                              Deadline: <span style={{ color:"white",fontWeight:600 }}>{reminder.deadlineStr}</span>
+                            </div>
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                              {[30,7,1].map(d => (
+                                <span key={d} style={{ fontSize:10,padding:"2px 7px",borderRadius:10,background:(reminder.sentDays||[]).includes(d)?"rgba(74,222,128,0.15)":"rgba(255,255,255,0.05)",border:`1px solid ${(reminder.sentDays||[]).includes(d)?"rgba(74,222,128,0.3)":"rgba(255,255,255,0.08)"}`,color:(reminder.sentDays||[]).includes(d)?"#4ade80":"rgba(255,255,255,0.3)" }}>
+                                  {(reminder.sentDays||[]).includes(d) ? `✓ ${d}d sent` : `${d}d`}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ display:"flex",flexDirection:"column",gap:6,shrink:0,alignItems:"flex-end" }}>
+                            <div className="font-display text-lg font-black" style={{ color:TYPE_COLORS[reminder.scholarship.type]||"#d4af37" }}>{reminder.scholarship.amount}</div>
+                            <button onClick={async()=>{
+                              const res = await api(`/api/reminders/${encodeURIComponent(reminder.id)}`,{method:"DELETE"});
+                              const data = await res.json();
+                              setReminders(data.reminders);
+                              setReminderIds(new Set(data.reminders.map(r=>r.id)));
+                            }} style={{ fontSize:11,padding:"4px 10px",borderRadius:7,cursor:"pointer",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"rgba(239,68,68,0.7)",fontWeight:600 }}>Remove</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
           {tab==="discover" && (
@@ -732,7 +902,7 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
                     ))}
                   </div>
                   <div className="flex flex-col gap-4">
-                    {matchResults.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayTarget(s)} isPro={user.isPro} />)}
+                    {matchResults.map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayTarget(s)} isPro={user.isPro} onReminder={s=>setReminderScholarship(s)} reminderIds={reminderIds} />)}
                   </div>
                 </div>
               )}
@@ -761,13 +931,23 @@ export default function App() {
   const [savedIds, setSavedIds] = useState(new Set());
   const [essayScholarship, setEssayScholarship] = useState(null);
   const [deeplinkedScholarship, setDeeplinkedScholarship] = useState(null);
+  const [reminderScholarship, setReminderScholarship] = useState(null);
+  const [reminderIds, setReminderIds] = useState(new Set());
   const intervalRef = useRef(null); const msgIdx = useRef(0);
 
   useEffect(() => {
     const token = localStorage.getItem("kaloma_token");
     if (token) {
       api("/api/auth/me").then(r=>r.json()).then(data => {
-        if (data.user) { setUser(data.user); setSavedIds(new Set((data.user.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`))); }
+        if (data.user) {
+          setUser(data.user);
+          setSavedIds(new Set((data.user.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
+          if (data.user.isPro) {
+            api("/api/reminders").then(r=>r.json()).then(d => {
+              setReminderIds(new Set((d.reminders||[]).map(r=>r.id)));
+            }).catch(()=>{});
+          }
+        }
         else localStorage.removeItem("kaloma_token");
       }).catch(()=>localStorage.removeItem("kaloma_token")).finally(()=>setAuthReady(true));
     } else setAuthReady(true);
@@ -840,6 +1020,7 @@ export default function App() {
       {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
       {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
       {deeplinkedScholarship && <DeeplinkModal scholarship={deeplinkedScholarship} onClose={()=>setDeeplinkedScholarship(null)} onSave={handleSave} savedIds={savedIds} onEssay={s=>{setDeeplinkedScholarship(null);if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onUpgrade={handleUpgrade} />}
+      {reminderScholarship && <ReminderModal scholarship={reminderScholarship} onClose={()=>setReminderScholarship(null)} onSave={r=>{setReminderIds(new Set(r.map(x=>x.id)));}} />}
 
       {/* ── Nav ── */}
       <nav style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
@@ -979,9 +1160,9 @@ export default function App() {
                         </div>
                         <div className="text-xs font-bold px-3 py-1.5 rounded-xl shrink-0" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
                       </div>
-                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} />)}</div>
+                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onReminder={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setReminderScholarship(s);}}} reminderIds={reminderIds} />)}</div>
                       {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} topScholarship={results[FREE_LIMIT]} />
-                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayScholarship(s)} isPro={user?.isPro} /></div>)}
+                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayScholarship(s)} isPro={user?.isPro} onReminder={s=>setReminderScholarship(s)} reminderIds={reminderIds} /></div>)}
                       <div className="mt-8 rounded-2xl p-5 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
                         <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
                         <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ New Search</button>
