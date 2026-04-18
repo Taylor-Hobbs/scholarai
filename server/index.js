@@ -5,11 +5,14 @@ const Stripe = require("stripe");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
+const cron = require("node-cron");
 
 const app = express();
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 const JWT_SECRET = process.env.JWT_SECRET || "kaloma-dev-secret-change-in-prod";
 const FREE_SEARCH_LIMIT = 1;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL = "Kaloma <reminders@kaloma.app>";
 
 // ─── Postgres ─────────────────────────────────────────────────────────────────
 const pool = new Pool({
@@ -29,9 +32,12 @@ async function initDB() {
       recent_searches JSONB DEFAULT '[]',
       saved_scholarships JSONB DEFAULT '[]',
       scholar_profile JSONB,
+      reminders JSONB DEFAULT '[]',
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  // Add reminders column if upgrading existing DB
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS reminders JSONB DEFAULT '[]'`);
   console.log("DB ready");
 }
 
@@ -58,7 +64,8 @@ async function updateUser(id, updates) {
   const map = {
     isPro: "is_pro", stripeCustomerId: "stripe_customer_id",
     searchCount: "search_count", recentSearches: "recent_searches",
-    savedScholarships: "saved_scholarships", scholarProfile: "scholar_profile"
+    savedScholarships: "saved_scholarships", scholarProfile: "scholar_profile",
+    reminders: "reminders"
   };
   for (const [key, val] of Object.entries(updates)) {
     const col = map[key] || key;
@@ -81,6 +88,7 @@ function safeUser(u) {
     recentSearches: u.recent_searches || [],
     savedScholarships: u.saved_scholarships || [],
     scholarProfile: u.scholar_profile,
+    reminders: u.reminders || [],
     createdAt: u.created_at,
   };
 }
@@ -381,6 +389,183 @@ Write the essay now. Output only the essay text, nothing else.`;
     res.json({ essay });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
+// ─── Deadline Reminders ───────────────────────────────────────────────────────
+
+// Try to parse a deadline string into a JS Date
+function parseDeadline(deadlineStr) {
+  if (!deadlineStr) return null;
+  const s = deadlineStr.trim();
+
+  // Already a clean date: "Mar 31, 2026" or "31 Mar 2026" or "2026-03-31"
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d;
+
+  // "Mar 2026" → last day of that month
+  const monthYear = s.match(/^([A-Za-z]+)\s+(\d{4})$/);
+  if (monthYear) {
+    const parsed = new Date(`${monthYear[1]} 1, ${monthYear[2]}`);
+    if (!isNaN(parsed.getTime())) {
+      parsed.setMonth(parsed.getMonth() + 1, 0); // last day of month
+      return parsed;
+    }
+  }
+
+  return null; // Rolling, TBD, etc
+}
+
+// Send an email via Resend
+async function sendEmail({ to, subject, html }) {
+  if (!RESEND_API_KEY) { console.warn("RESEND_API_KEY not set — skipping email"); return; }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+  });
+  if (!res.ok) { const err = await res.json(); console.error("Resend error:", err); }
+}
+
+// Email template
+function reminderEmailHtml({ scholarship, daysUntil, deadlineStr }) {
+  const urgency = daysUntil === 1 ? "⚠️ Last chance" : daysUntil === 7 ? "📅 One week left" : "🔔 Reminder";
+  const urgencyColor = daysUntil === 1 ? "#f87171" : daysUntil === 7 ? "#fbbf24" : "#d4af37";
+  return `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#060b18;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif">
+  <div style="max-width:560px;margin:0 auto;padding:40px 24px">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,#d4af37,#f5d060);display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#0a0f1e;font-family:Georgia,serif">K</div>
+      <div style="margin-top:10px;font-size:13px;color:#d4af37;letter-spacing:0.1em;text-transform:uppercase;font-weight:700">Kaloma · Scholarship Reminder</div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(212,175,55,0.3);border-radius:20px;padding:28px;margin-bottom:24px">
+      <div style="display:inline-block;padding:5px 12px;border-radius:20px;background:rgba(212,175,55,0.15);border:1px solid ${urgencyColor}40;color:${urgencyColor};font-size:12px;font-weight:700;margin-bottom:16px">${urgency}</div>
+      <h2 style="margin:0 0 6px;font-size:22px;font-weight:900;color:white;line-height:1.3">${scholarship.name}</h2>
+      <p style="margin:0 0 16px;font-size:14px;color:rgba(255,255,255,0.5)">${scholarship.institution}</p>
+      <div style="font-size:28px;font-weight:900;color:#d4af37;margin-bottom:20px">${scholarship.amount}</div>
+
+      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.3);margin-bottom:6px">Deadline</div>
+        <div style="font-size:16px;font-weight:700;color:${urgencyColor}">${deadlineStr}</div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px">${daysUntil === 1 ? "Due tomorrow" : `${daysUntil} days remaining`}</div>
+      </div>
+
+      <a href="${scholarship.url}" style="display:block;text-align:center;padding:14px;border-radius:12px;background:linear-gradient(135deg,#d4af37,#f5d060);color:#0a0f1e;font-size:15px;font-weight:700;text-decoration:none">Apply Now →</a>
+    </div>
+
+    <p style="font-size:12px;color:rgba(255,255,255,0.2);text-align:center;line-height:1.6">
+      You're receiving this because you set a reminder on <a href="https://kaloma.app" style="color:#d4af37">kaloma.app</a>.<br>
+      Always verify deadline details on the institution's official website.
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+// Set a reminder
+app.post("/api/reminders", requireAuth, async (req, res) => {
+  const user = await findUserById(req.user.id);
+  if (!user.is_pro) return res.status(403).json({ error: "PRO_REQUIRED", message: "Reminders are a Pro feature." });
+
+  const { scholarship, deadlineStr, deadlineDate } = req.body;
+  if (!scholarship) return res.status(400).json({ error: "Scholarship data required." });
+
+  // Parse deadline — prefer explicit deadlineDate, fall back to parsing scholarships deadline field
+  let parsedDate = deadlineDate ? new Date(deadlineDate) : parseDeadline(scholarship.deadline);
+  const needsManualDate = !parsedDate || isNaN(parsedDate.getTime());
+
+  if (needsManualDate && !deadlineDate) {
+    return res.status(422).json({ error: "NEEDS_DATE", message: "Could not parse deadline. Please enter the date manually." });
+  }
+
+  const reminders = user.reminders || [];
+  const id = `${scholarship.name}||${scholarship.institution}`;
+  const existing = reminders.find(r => r.id === id);
+  if (existing) return res.status(409).json({ error: "Reminder already set for this scholarship." });
+
+  const reminder = {
+    id,
+    scholarship,
+    deadlineDate: parsedDate.toISOString(),
+    deadlineStr: deadlineStr || scholarship.deadline,
+    createdAt: new Date().toISOString(),
+    sentDays: [], // track which reminder emails have been sent (30, 7, 1)
+  };
+
+  const updated = await updateUser(user.id, { reminders: [...reminders, reminder] });
+  res.json({ reminder, reminders: updated.reminders });
+});
+
+// Delete a reminder
+app.delete("/api/reminders/:id", requireAuth, async (req, res) => {
+  const user = await findUserById(req.user.id);
+  const reminders = (user.reminders || []).filter(r => r.id !== decodeURIComponent(req.params.id));
+  const updated = await updateUser(user.id, { reminders });
+  res.json({ reminders: updated.reminders });
+});
+
+// List reminders
+app.get("/api/reminders", requireAuth, async (req, res) => {
+  const user = await findUserById(req.user.id);
+  res.json({ reminders: user.reminders || [] });
+});
+
+// ─── Daily reminder cron (runs at 8am AEST = 10pm UTC) ───────────────────────
+async function runReminderJob() {
+  console.log("[cron] Running deadline reminder job...");
+  const now = new Date();
+
+  try {
+    const { rows: users } = await pool.query(
+      "SELECT * FROM users WHERE is_pro = TRUE AND reminders IS NOT NULL AND jsonb_array_length(reminders) > 0"
+    );
+
+    let sent = 0;
+    for (const user of users) {
+      const reminders = user.reminders || [];
+      let updated = false;
+
+      for (const reminder of reminders) {
+        const deadline = new Date(reminder.deadlineDate);
+        const msLeft = deadline.getTime() - now.getTime();
+        const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+
+        for (const triggerDay of [30, 7, 1]) {
+          if (daysLeft === triggerDay && !(reminder.sentDays || []).includes(triggerDay)) {
+            await sendEmail({
+              to: user.email,
+              subject: `${triggerDay === 1 ? "⚠️ Last day" : `${triggerDay} days left`} — ${reminder.scholarship.name}`,
+              html: reminderEmailHtml({ scholarship: reminder.scholarship, daysUntil: triggerDay, deadlineStr: reminder.deadlineStr }),
+            });
+            reminder.sentDays = [...(reminder.sentDays || []), triggerDay];
+            updated = true;
+            sent++;
+            console.log(`[cron] Sent ${triggerDay}d reminder to ${user.email} for "${reminder.scholarship.name}"`);
+          }
+        }
+
+        // Remove reminders that are more than 2 days past deadline
+        if (daysLeft < -2) {
+          const idx = reminders.indexOf(reminder);
+          reminders.splice(idx, 1);
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        await pool.query("UPDATE users SET reminders = $1 WHERE id = $2", [JSON.stringify(reminders), user.id]);
+      }
+    }
+    console.log(`[cron] Done — ${sent} emails sent`);
+  } catch (e) {
+    console.error("[cron] Error:", e.message);
+  }
+}
+
+// 10pm UTC daily = 8am AEST
+cron.schedule("0 22 * * *", runReminderJob);
 
 app.get("/health", (_, res) => res.json({ ok: true }));
 
