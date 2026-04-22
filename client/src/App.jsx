@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as THREE from 'three';
 
 const SCHOLARSHIP_TYPES = ["Merit-Based","Need-Based","Athletic","STEM / Engineering","Arts & Humanities","Graduate / Postgraduate","Undergraduate","International Students","Women in STEM","Minority / Diversity","Community Service","Research","Government / National"];
 const AGENT_SOURCES = [
@@ -934,6 +935,82 @@ export default function App() {
   const [reminderScholarship, setReminderScholarship] = useState(null);
   const [reminderIds, setReminderIds] = useState(new Set());
   const intervalRef = useRef(null); const msgIdx = useRef(0);
+  const canvasRef = useRef(null);
+  const [navScrolled, setNavScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setNavScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 500);
+    camera.position.z = 18;
+    let W = window.innerWidth, H = window.innerHeight;
+    function onResize() {
+      W = window.innerWidth; H = window.innerHeight;
+      renderer.setSize(W, H, false);
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+    }
+    onResize();
+    window.addEventListener('resize', onResize);
+    const s = 64, c = 32;
+    const cvs2 = document.createElement('canvas');
+    cvs2.width = cvs2.height = s;
+    const ctx2 = cvs2.getContext('2d');
+    ctx2.beginPath();
+    ctx2.moveTo(c, 3); ctx2.lineTo(s - 4, c); ctx2.lineTo(c, s - 3); ctx2.lineTo(4, c);
+    ctx2.closePath();
+    const g = ctx2.createRadialGradient(c, c, 0, c, c, 28);
+    g.addColorStop(0, 'rgba(255,252,245,1)');
+    g.addColorStop(0.45, 'rgba(255,248,235,0.65)');
+    g.addColorStop(1, 'rgba(255,248,235,0)');
+    ctx2.fillStyle = g; ctx2.fill();
+    const diamondTex = new THREE.CanvasTexture(cvs2);
+    const N = 228;
+    const pos = new Float32Array(N * 3);
+    const col = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      const r = Math.pow(Math.random(), 0.45) * 28;
+      const arm = Math.floor(Math.random() * 3);
+      const angle = (arm / 3) * Math.PI * 2 + r * 0.28 + (Math.random() - 0.5) * 1.4;
+      pos[i * 3] = r * Math.cos(angle) + (Math.random() - 0.5) * 1.5;
+      pos[i * 3 + 2] = r * Math.sin(angle) * 0.32 + (Math.random() - 0.5) * 0.8;
+      pos[i * 3 + 1] = Math.random() < 0.32 ? (Math.random() - 0.5) * 22 : (Math.random() - 0.5) * Math.max(0.3, 4.0 - r * 0.12);
+      const bright = 0.3 + Math.random() * 0.7;
+      col[i * 3] = 1.0 * bright; col[i * 3 + 1] = 0.97 * bright; col[i * 3 + 2] = 0.88 * bright;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    const galaxyMesh = new THREE.Points(geo, new THREE.PointsMaterial({
+      map: diamondTex, size: 0.22, vertexColors: true, sizeAttenuation: true,
+      transparent: true, opacity: 1, alphaTest: 0.02,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    galaxyMesh.rotation.x = 0.2;
+    scene.add(galaxyMesh);
+    let rafId;
+    function animate() {
+      rafId = requestAnimationFrame(animate);
+      galaxyMesh.rotation.y += 0.0003;
+      renderer.render(scene, camera);
+    }
+    animate();
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', onResize);
+      renderer.dispose();
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("kaloma_token");
@@ -1012,10 +1089,12 @@ export default function App() {
 
   const reset = () => { setPhase("idle"); setResults([]); setError(""); };
 
-  if (!authReady) return <div style={{ minHeight:"100vh",background:"linear-gradient(135deg,#060b18,#0a1628)",display:"flex",alignItems:"center",justifyContent:"center" }}><div style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>Loading...</div></div>;
+  if (!authReady) return <div style={{ minHeight:"100vh",background:"radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%)",display:"flex",alignItems:"center",justifyContent:"center" }}><div style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>Loading...</div></div>;
 
   return (
-    <div className="min-h-screen" style={{ background:"linear-gradient(135deg,#060b18 0%,#0a1628 50%,#060d1f 100%)" }}>
+    <div className="min-h-screen" style={{ background:"radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%)",position:"relative",overflowX:"hidden" }}>
+      <canvas ref={canvasRef} style={{ position:"fixed",inset:0,width:"100%",height:"100%",zIndex:0,pointerEvents:"none" }} />
+      <div style={{ position:"fixed",inset:0,zIndex:0,pointerEvents:"none",background:"radial-gradient(ellipse at 48% 46%,rgba(15,45,95,0.32) 0%,transparent 50%),radial-gradient(ellipse at 20% 78%,rgba(75,28,8,0.16) 0%,transparent 38%),radial-gradient(ellipse at 78% 20%,rgba(38,12,75,0.13) 0%,transparent 32%)" }} />
       {showAuth && <AuthModal onAuth={handleAuth} />}
       {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
       {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
@@ -1023,11 +1102,22 @@ export default function App() {
       {reminderScholarship && <ReminderModal scholarship={reminderScholarship} onClose={()=>setReminderScholarship(null)} onSave={r=>{setReminderIds(new Set(r.map(x=>x.id)));}} />}
 
       {/* ── Nav ── */}
-      <nav style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+      <nav style={{ position:"fixed",top:0,left:0,right:0,zIndex:50,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 32px",transition:"background 0.4s,backdrop-filter 0.4s,border-color 0.4s",borderBottom:`1px solid ${navScrolled?"rgba(255,255,255,0.05)":"transparent"}`,background:navScrolled?"rgba(6,11,24,0.85)":"transparent",backdropFilter:navScrolled?"blur(20px)":"none" }}>
         {/* Logo */}
-        <div style={{ display:"flex",alignItems:"center",gap:10,cursor:"pointer" }} onClick={()=>{reset();setPage("home");}}>
+        <a href="/" style={{ display:"flex",alignItems:"center",gap:10,cursor:"pointer",textDecoration:"none" }}>
           <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif",flexShrink:0 }}>K</div>
           <div style={{ fontFamily:"'Playfair Display',serif",fontWeight:700,color:"white",fontSize:16,letterSpacing:"-0.02em" }}>Kaloma</div>
+        </a>
+
+        {/* Centre nav links — hidden on mobile */}
+        <div className="hidden sm:flex" style={{ gap:4 }}>
+          {[["Home","/"],["How it works","/#how"],["Pricing","/#pricing"],["Search","/search"]].map(([label,href])=>(
+            <a key={label} href={href} style={{ padding:"7px 15px",borderRadius:8,fontSize:13,fontWeight:500,color:"rgba(255,255,255,0.5)",textDecoration:"none",transition:"color 0.2s,background 0.2s" }}
+              onMouseEnter={e=>{e.currentTarget.style.color="#fff";e.currentTarget.style.background="rgba(255,255,255,0.06)"}}
+              onMouseLeave={e=>{e.currentTarget.style.color="rgba(255,255,255,0.5)";e.currentTarget.style.background="transparent"}}>
+              {label}
+            </a>
+          ))}
         </div>
 
         {/* Right side */}
@@ -1068,7 +1158,7 @@ export default function App() {
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6" style={{ position:"relative",zIndex:1,paddingTop:"96px",paddingBottom:"48px" }}>
         {page==="profile"&&user && (
           <ProfilePage user={user} onBack={()=>setPage("home")} onUpgrade={handleUpgrade} stripeLoading={stripeLoading} onUserUpdate={(updates)=>setUser(u=>({...u,...updates}))} />
         )}
