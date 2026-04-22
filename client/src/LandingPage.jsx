@@ -60,8 +60,8 @@ nav.scrolled{background:rgba(6,11,24,0.85);backdrop-filter:blur(20px);border-bot
 .lp-steps{border-top:1px solid rgba(255,255,255,0.06)}
 .lp-step{display:grid;grid-template-columns:88px 1fr;gap:28px;padding:38px 0;border-bottom:1px solid rgba(255,255,255,0.06);opacity:0;transform:translateY(22px);transition:opacity 0.7s ease,transform 0.7s ease}
 .lp-step.visible{opacity:1;transform:translateY(0)}
-.lp-step-n{font-family:'Playfair Display',serif;font-size:64px;font-weight:900;color:rgba(212,175,55,0.1);line-height:1;padding-top:2px;transition:color 0.35s}
-.lp-step:hover .lp-step-n{color:rgba(212,175,55,0.22)}
+.lp-step-n{font-family:'Playfair Display',serif;font-size:64px;font-weight:900;color:rgba(212,175,55,1);line-height:1;padding-top:2px;opacity:0.1;transition:opacity 0.8s ease 0.35s}
+.lp-step.visible .lp-step-n{opacity:1}
 .lp-step-title{font-size:20px;font-weight:700;color:#fff;margin-bottom:9px}
 .lp-step-desc{font-size:14px;color:var(--muted);line-height:1.75;max-width:560px}
 .lp-p-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);border-radius:22px;overflow:hidden;margin-top:56px}
@@ -460,6 +460,7 @@ export default function LandingPage() {
           <a href="/" className="lp-nl">Home</a>
           <a href="/#how" className="lp-nl">How it works</a>
           <a href="/#pricing" className="lp-nl">Pricing</a>
+          <a href="/search" className="lp-nl">Search</a>
         </div>
         <a href="/search" className="lp-nav-cta">Get Started →</a>
       </nav>
@@ -585,6 +586,7 @@ export default function LandingPage() {
           <a href="/" className="lp-f-link">Home</a>
           <a href="/#how" className="lp-f-link">How it works</a>
           <a href="/#pricing" className="lp-f-link">Pricing</a>
+          <a href="/search" className="lp-f-link">Search</a>
         </div>
         <p className="lp-f-copy">© 2026 Kaloma. All rights reserved.</p>
       </footer>
