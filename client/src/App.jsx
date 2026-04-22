@@ -1025,10 +1025,10 @@ export default function App() {
       {/* ── Nav ── */}
       <nav style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
         {/* Logo */}
-        <div style={{ display:"flex",alignItems:"center",gap:10,cursor:"pointer" }} onClick={()=>{reset();setPage("home");}}>
+        <a href="/" style={{ display:"flex",alignItems:"center",gap:10,cursor:"pointer",textDecoration:"none" }}>
           <div style={{ width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#d4af37,#f5d060)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,fontWeight:900,color:"#0a0f1e",fontFamily:"'Playfair Display',serif",flexShrink:0 }}>K</div>
           <div style={{ fontFamily:"'Playfair Display',serif",fontWeight:700,color:"white",fontSize:16,letterSpacing:"-0.02em" }}>Kaloma</div>
-        </div>
+        </a>
 
         {/* Right side */}
         <div style={{ display:"flex",alignItems:"center",gap:8 }}>
