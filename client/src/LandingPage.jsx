@@ -8,7 +8,7 @@ const CSS = `
   --bg:#060b18;--bg2:#080e1f;
   --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.38);
 }
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;overflow-x:hidden}
 body{background:radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 #nebula{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 48% 46%,rgba(15,45,95,0.32) 0%,transparent 50%),radial-gradient(ellipse at 20% 78%,rgba(75,28,8,0.16) 0%,transparent 38%),radial-gradient(ellipse at 78% 20%,rgba(38,12,75,0.13) 0%,transparent 32%)}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
@@ -26,7 +26,7 @@ nav.scrolled{background:rgba(6,11,24,0.85);backdrop-filter:blur(20px);border-bot
 #drag-layer{position:absolute;inset:0;cursor:grab;z-index:1}
 #drag-layer:active{cursor:grabbing}
 .hero-content{position:relative;z-index:2;pointer-events:none;max-width:780px}
-.glow-v{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(100,50,10,0.12) 0%,transparent 68%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}
+.glow-v{position:absolute;width:min(700px,100vw);height:min(700px,100vw);border-radius:50%;background:radial-gradient(circle,rgba(100,50,10,0.12) 0%,transparent 68%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:0}
 .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:100px;background:rgba(212,175,55,0.08);border:1px solid rgba(212,175,55,0.2);color:var(--gold);font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:32px;opacity:0;animation:lp-fadeUp 0.8s 0.2s ease forwards}
 .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:lp-dotPulse 2.5s ease infinite}
 .hero-content h1{font-family:'Playfair Display',serif;font-size:clamp(44px,7.5vw,90px);font-weight:900;color:#fff;line-height:1.02;letter-spacing:-0.04em;margin-bottom:22px;opacity:0;animation:lp-fadeUp 0.8s 0.35s ease forwards}
