@@ -8,7 +8,7 @@ const CSS = `
   --bg:#060b18;--bg2:#080e1f;
   --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.38);
 }
-html{scroll-behavior:smooth;overflow-x:hidden}
+html{scroll-behavior:smooth;overflow-x:clip}
 body{background:radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 #nebula{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 48% 46%,rgba(15,45,95,0.32) 0%,transparent 50%),radial-gradient(ellipse at 20% 78%,rgba(75,28,8,0.16) 0%,transparent 38%),radial-gradient(ellipse at 78% 20%,rgba(38,12,75,0.13) 0%,transparent 32%)}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
