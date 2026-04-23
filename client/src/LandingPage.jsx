@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 
 const CSS = `
@@ -9,7 +9,7 @@ const CSS = `
   --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.38);
 }
 html{scroll-behavior:smooth;overflow-x:clip}
-body{background:radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body{background:radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%);color:var(--text);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;overflow-x:clip}
 #nebula{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at 48% 46%,rgba(15,45,95,0.32) 0%,transparent 50%),radial-gradient(ellipse at 20% 78%,rgba(75,28,8,0.16) 0%,transparent 38%),radial-gradient(ellipse at 78% 20%,rgba(38,12,75,0.13) 0%,transparent 32%)}
 #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:18px 44px;transition:background 0.4s,backdrop-filter 0.4s,border-color 0.4s;border-bottom:1px solid transparent;}
@@ -106,10 +106,13 @@ nav.scrolled{background:rgba(6,11,24,0.85);backdrop-filter:blur(20px);border-bot
 `;
 
 export default function LandingPage() {
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
     const styleEl = document.createElement('style');
     styleEl.textContent = CSS;
     document.head.appendChild(styleEl);
+    setReady(true);
 
     const cfg = { starCount: 228, globeSpeed: 2.3, globeDots: 4561 };
 
@@ -448,6 +451,7 @@ export default function LandingPage() {
 
   return (
     <>
+      {!ready && <div style={{ position:"fixed",inset:0,zIndex:9999,background:"radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%)",display:"flex",alignItems:"center",justifyContent:"center" }}><div style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>Loading...</div></div>}
       <canvas id="bg"></canvas>
       <div id="nebula"></div>
 
