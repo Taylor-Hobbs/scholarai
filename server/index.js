@@ -248,7 +248,7 @@ app.post("/api/match", requireAuth, async (req, res) => {
   if (!p) return res.status(400).json({ error: "Please complete your scholar profile first." });
   if (req.body.scholarProfile) await updateUser(user.id, { scholarProfile: p });
 
-  const prompt = `You are an expert scholarship matching agent. Based on this student's profile, find 8 real scholarships they are most likely to qualify for and win.
+  const prompt = `You are an expert scholarship matching agent. Based on this student's profile, find real scholarships they are most likely to qualify for and win.
 
 STUDENT PROFILE:
 - Study Level: ${p.studyLevel}
@@ -263,24 +263,88 @@ STUDENT PROFILE:
 - Demographic Background: ${p.demographics || "Not specified"}
 
 For each scholarship, analyse how well it matches this student and assign a matchScore (0-100).
-Return ONLY a valid JSON array (no markdown):
-[{"name":"...","institution":"...","amount":"$X,XXX","type":"Merit-Based","region":"Australia","description":"2-sentence description.","eligibility":"...","gpa":"3.5+","deadline":"Mar 31, 2026","opens":"Nov 1, 2025","url":"https://...","source":"...","matchScore":92,"matchReason":"One sentence explaining why this is a strong match for this specific student."}]
-Sort by matchScore descending. Be realistic. Return as many as possible up to 16, minimum 8.`;
+Return each scholarship as a separate JSON object on its own line (NDJSON format). No array brackets, no markdown, no extra text — just one complete JSON object per line:
+{"name":"...","institution":"...","amount":"$X,XXX","type":"Merit-Based","region":"Australia","description":"2-sentence description.","eligibility":"...","gpa":"3.5+","deadline":"Mar 31, 2026","opens":"Nov 1, 2025","url":"https://...","source":"...","matchScore":92,"matchReason":"One sentence explaining why this is a strong match for this specific student."}
+Sort by matchScore descending. Be realistic. Output minimum 8, up to 16.`;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 8000, stream: true, messages: [{ role: "user", content: prompt }] }),
     });
-    if (!response.ok) { const err = await response.json(); return res.status(500).json({ error: `Anthropic error: ${JSON.stringify(err)}` }); }
-    const data = await response.json();
-    const text = data.content?.map(b => b.text || "").join("") || "";
-    const scholarships = JSON.parse(text.replace(/```json|```/g, "").trim());
+
+    if (!anthropicRes.ok) {
+      const err = await anthropicRes.json();
+      res.write(`data: ${JSON.stringify({ type: "error", error: `Anthropic error: ${JSON.stringify(err)}` })}\n\n`);
+      return res.end();
+    }
+
+    let textBuffer = "";
+    let scholarships = [];
+    const reader = anthropicRes.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      sseBuffer += decoder.decode(value, { stream: true });
+      const lines = sseBuffer.split("\n");
+      sseBuffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (raw === "[DONE]") continue;
+        try {
+          const event = JSON.parse(raw);
+          if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+            textBuffer += event.delta.text;
+            const nl = textBuffer.lastIndexOf("\n");
+            if (nl > -1) {
+              const complete = textBuffer.slice(0, nl).split("\n");
+              textBuffer = textBuffer.slice(nl + 1);
+              for (const l of complete) {
+                const t = l.trim();
+                if (!t.startsWith("{")) continue;
+                try {
+                  const s = JSON.parse(t);
+                  scholarships.push(s);
+                  res.write(`data: ${JSON.stringify({ type: "scholarship", scholarship: s, count: scholarships.length })}\n\n`);
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // Flush any remaining buffered text
+    const remaining = textBuffer.trim();
+    if (remaining.startsWith("{")) {
+      try {
+        const s = JSON.parse(remaining);
+        scholarships.push(s);
+        res.write(`data: ${JSON.stringify({ type: "scholarship", scholarship: s, count: scholarships.length })}\n\n`);
+      } catch {}
+    }
+
     const recentSearches = [{ id: Date.now().toString(), query: { type: "✦ Best Match", university: p.university, region: p.studyCountry }, results: scholarships, searchedAt: new Date().toISOString(), isBestMatch: true }, ...(user.recent_searches || [])].slice(0, 10);
     await updateUser(user.id, { searchCount: (user.search_count || 0) + 1, recentSearches });
-    res.json({ scholarships });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+
+    res.write(`data: ${JSON.stringify({ type: "done", count: scholarships.length })}\n\n`);
+    res.end();
+  } catch (e) {
+    res.write(`data: ${JSON.stringify({ type: "error", error: e.message })}\n\n`);
+    res.end();
+  }
 });
 
 app.post("/api/create-checkout", requireAuth, async (req, res) => {

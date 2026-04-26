@@ -10,7 +10,6 @@ const AGENT_SOURCES = [
   { name:"Industry",     icon:"⚙️", task:"Sourcing corporate grants" },
   { name:"Research",     icon:"🔬", task:"Finding research fellowships" },
 ];
-const LOADING_MSGS = ["Deploying 6 AI agents worldwide...","Scanning university endowments...","Mining government databases...","Aggregating private foundations...","Cross-referencing eligibility...","Ranking by match score..."];
 const MATCH_MSGS = ["Analysing your academic profile...","Matching against 10,000+ scholarships...","Scoring eligibility fit...","Ranking by win probability...","Personalising your results...","Finalising your match report..."];
 const TYPE_COLORS = { "Merit-Based":"#d4af37","Need-Based":"#60a5fa","STEM / Engineering":"#34d399","Research":"#a78bfa","Government / National":"#f87171","International Students":"#fb923c","Graduate / Postgraduate":"#e879f9","Women in STEM":"#f472b6" };
 const FREE_LIMIT = 3;
@@ -19,6 +18,45 @@ const API_BASE = import.meta.env.VITE_API_URL || "https://scholarai-production-3
 function api(path, options = {}) {
   const token = localStorage.getItem("kaloma_token");
   return fetch(`${API_BASE}${path}`, { ...options, headers: { "Content-Type":"application/json", ...(token ? { Authorization:`Bearer ${token}` } : {}), ...options.headers } });
+}
+
+async function streamMatch(scholarProfile, { onScholarship, onDone, onError }) {
+  const token = localStorage.getItem("kaloma_token");
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/match`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ scholarProfile }),
+    });
+  } catch (e) { onError({ error: e.message }); return; }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({ error: "Request failed" }));
+    onError(data); return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.type === "scholarship") onScholarship(event.scholarship, event.count);
+          else if (event.type === "done") onDone(event.count);
+          else if (event.type === "error") onError({ error: event.error });
+        } catch {}
+      }
+    }
+  } catch (e) { onError({ error: e.message }); }
 }
 
 // ─── Auth Modal ───────────────────────────────────────────────────────────────
@@ -682,18 +720,20 @@ function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
   };
 
   const runMatch = async (scholarProfile) => {
-    setMatchLoading(true); setMatchError("");
+    setMatchLoading(true); setMatchError(""); setMatchResults([]);
     setMatchPhase("searching"); setMatchMsg(MATCH_MSGS[0]);
     msgIdx.current=0;
     intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%MATCH_MSGS.length; setMatchMsg(MATCH_MSGS[msgIdx.current]); },2000);
-    try {
-      const res = await api("/api/match",{ method:"POST",body:JSON.stringify({scholarProfile}) });
-      const data = await res.json();
-      if (!res.ok) { if (data.error==="PRO_REQUIRED") { setMatchPhase("idle"); onUpgrade&&onUpgrade("monthly"); return; } throw new Error(data.error||data.message); }
-      setMatchResults(data.scholarships||[]);
-      setMatchPhase("results");
-    } catch(e) { setMatchError(e.message); setMatchPhase("form"); }
-    finally { clearInterval(intervalRef.current); setMatchLoading(false); }
+    await streamMatch(scholarProfile, {
+      onScholarship: (s) => setMatchResults(prev => [...prev, s]),
+      onDone: () => { clearInterval(intervalRef.current); setMatchPhase("results"); setMatchLoading(false); },
+      onError: (data) => {
+        clearInterval(intervalRef.current);
+        if (data.error==="PRO_REQUIRED") { setMatchPhase("idle"); onUpgrade&&onUpgrade("monthly"); }
+        else { setMatchError(data.error||"Something went wrong"); setMatchPhase("form"); }
+        setMatchLoading(false);
+      },
+    });
   };
 
   // ── Mobile-friendly tabs ──────────────────────────────────────────────────
@@ -923,7 +963,6 @@ export default function App() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
   const [page, setPage] = useState("home");
-  const [type, setType] = useState(""); const [university, setUniversity] = useState(""); const [region, setRegion] = useState("");
   const [phase, setPhase] = useState("idle");
   const [loadingMsg, setLoadingMsg] = useState("");
   const [results, setResults] = useState([]);
@@ -1057,24 +1096,6 @@ export default function App() {
     setUser(u=>({...u,savedScholarships:data.savedScholarships}));
   };
 
-  const search = async () => {
-    if (!user) return setShowAuth(true);
-    if (!university.trim()&&!region.trim()) return setError("Please enter at least a university or region.");
-    setError(""); setPhase("searching"); setResults([]);
-    msgIdx.current=0; setLoadingMsg(LOADING_MSGS[0]);
-    intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%LOADING_MSGS.length; setLoadingMsg(LOADING_MSGS[msgIdx.current]); },1800);
-    try {
-      const res = await api("/api/search",{ method:"POST",body:JSON.stringify({type,university,region}) });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.error==="FREE_LIMIT_REACHED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return; }
-        throw new Error(data.error||data.message);
-      }
-      setResults(data.scholarships||[]);
-      setUser(u=>({...u,searchCount:(u.searchCount||0)+1}));
-    } catch(e) { setError(e.message); }
-    finally { clearInterval(intervalRef.current); setPhase(p=>p==="searching"?"results":p); }
-  };
 
   const handleUpgrade = async (plan) => {
     if (!user) return setShowAuth(true);
@@ -1185,21 +1206,24 @@ export default function App() {
                   <ScholarProfileForm
                     initial={user?.scholarProfile||{}}
                     loading={phase==="searching"}
-                    onSubmit={p=>{
+                    onSubmit={async p=>{
                       if (!user) return setShowAuth(true);
                       setError(""); setPhase("searching"); setResults([]);
                       msgIdx.current=0; setLoadingMsg(MATCH_MSGS[0]);
                       intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%MATCH_MSGS.length; setLoadingMsg(MATCH_MSGS[msgIdx.current]); },1800);
-                      api("/api/match",{ method:"POST",body:JSON.stringify({scholarProfile:p}) })
-                        .then(r=>r.json())
-                        .then(data=>{
-                          if (data.error==="FREE_LIMIT_REACHED"||data.error==="PRO_REQUIRED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return; }
-                          if (!data.scholarships) throw new Error(data.error||data.message||"No results");
-                          setResults(data.scholarships);
+                      await streamMatch(p, {
+                        onScholarship: (s) => setResults(prev => [...prev, s]),
+                        onDone: () => {
+                          clearInterval(intervalRef.current);
                           setUser(u=>({...u,searchCount:(u.searchCount||0)+1,scholarProfile:p}));
-                        })
-                        .catch(e=>{ setError(e.message); })
-                        .finally(()=>{ clearInterval(intervalRef.current); setPhase(p=>p==="searching"?"results":p); });
+                          setPhase("results");
+                        },
+                        onError: (data) => {
+                          clearInterval(intervalRef.current);
+                          if (data.error==="FREE_LIMIT_REACHED"||data.error==="PRO_REQUIRED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); }
+                          else { setError(data.error||"Something went wrong"); setPhase("idle"); }
+                        },
+                      });
                     }}
                   />
                   <p className="text-center text-xs mt-4" style={{ color:"rgba(255,255,255,0.2)" }}>
@@ -1227,7 +1251,7 @@ export default function App() {
                 <div className="text-center mb-8">
                   <div style={{ width:52,height:52,borderRadius:14,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,margin:"0 auto 16px",animation:"spin 3s linear infinite" }}>◎</div>
                   <h2 className="font-display text-2xl font-black text-white mb-2">Agents Deployed</h2>
-                  <p className="text-sm font-medium" style={{ color:"#d4af37" }}>{loadingMsg}</p>
+                  <p className="text-sm font-medium" style={{ color:"#d4af37" }}>{results.length > 0 ? `Found ${results.length} scholarship${results.length===1?"":"s"} so far...` : loadingMsg}</p>
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.35)" }}>Active Agents ({AGENT_SOURCES.length})</h3>
@@ -1246,7 +1270,7 @@ export default function App() {
                         <div>
                           <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"#d4af37" }}>Match complete</div>
                           <h2 className="font-display text-2xl sm:text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Matched</h2>
-                          <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
+                          <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[user?.scholarProfile?.fieldOfStudy, user?.scholarProfile?.studyCountry].filter(Boolean).join(" · ")||"Worldwide"}</p>
                         </div>
                         <div className="text-xs font-bold px-3 py-1.5 rounded-xl shrink-0" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
                       </div>
