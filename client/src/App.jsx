@@ -438,21 +438,22 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro
               {s.deadline&&<span className="text-xs px-2 py-0.5 rounded-full" style={{ background:"rgba(239,68,68,0.1)",color:"#fca5a5",border:"1px solid rgba(239,68,68,0.2)" }}>⏰ {s.deadline}</span>}
             </div>
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="font-display text-base sm:text-lg font-bold text-white mb-0.5 leading-tight">{s.name}</h3>
-                <p className="text-xs sm:text-sm" style={{ color:"rgba(255,255,255,0.4)" }}>{s.institution}</p>
+                <p className="text-xs sm:text-sm truncate" style={{ color:"rgba(255,255,255,0.4)" }}>{s.institution}</p>
+                <div className="sm:hidden font-display text-base font-black mt-1" style={{ color:accent }}>{s.amount}</div>
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">
-                <div className="font-display text-xl sm:text-2xl font-black" style={{ color:accent }}>{s.amount}</div>
+                <div className="hidden sm:block font-display text-2xl font-black" style={{ color:accent }}>{s.amount}</div>
                 <button onClick={handleSave} disabled={saving} className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold"
                   style={{ background:isSaved?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.06)",border:`1px solid ${isSaved?"rgba(212,175,55,0.4)":"rgba(255,255,255,0.1)"}`,color:isSaved?"#d4af37":"rgba(255,255,255,0.5)",cursor:"pointer",whiteSpace:"nowrap" }}>
                   {saving?"...":(isSaved?"★ Saved":"☆ Save")}
                 </button>
               </div>
             </div>
-            <p className="text-xs sm:text-sm mt-2 leading-relaxed" style={{ color:"rgba(255,255,255,0.5)" }}>{s.description}</p>
+            <p className="hidden sm:block text-sm mt-2 leading-relaxed" style={{ color:"rgba(255,255,255,0.5)" }}>{s.description}</p>
             {showMatch && s.matchReason && (
-              <div className="mt-2 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.15)" }}>
+              <div className="hidden sm:flex mt-2 px-3 py-2 rounded-lg items-start gap-2" style={{ background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.15)" }}>
                 <span style={{ fontSize:11,marginTop:1 }}>✦</span>
                 <p className="text-xs leading-relaxed" style={{ color:"rgba(74,222,128,0.9)" }}>{s.matchReason}</p>
               </div>
@@ -483,6 +484,13 @@ function ScholarshipCard({ s, index, savedIds, onSave, showMatch, onEssay, isPro
       </div>
       {expanded && (
         <div className="px-4 sm:px-6 pb-5 pt-2" style={{ borderTop:"1px solid rgba(255,255,255,0.06)" }}>
+          {s.description && <p className="sm:hidden text-sm mb-3 leading-relaxed" style={{ color:"rgba(255,255,255,0.5)" }}>{s.description}</p>}
+          {showMatch && s.matchReason && (
+            <div className="sm:hidden mb-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background:"rgba(74,222,128,0.06)",border:"1px solid rgba(74,222,128,0.15)" }}>
+              <span style={{ fontSize:11,marginTop:1 }}>✦</span>
+              <p className="text-xs leading-relaxed" style={{ color:"rgba(74,222,128,0.9)" }}>{s.matchReason}</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
             {[{label:"Eligibility",val:s.eligibility},{label:"GPA Required",val:s.gpa},{label:"Opens",val:s.opens},{label:"Source",val:s.source}].map(item=>(
               <div key={item.label}><div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"rgba(255,255,255,0.25)" }}>{item.label}</div><div className="text-sm font-medium text-white">{item.val||"—"}</div></div>
