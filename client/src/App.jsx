@@ -71,7 +71,7 @@ function UpgradeModal({ onUpgrade, onClose, loading, reason }) {
         </p>
         <div style={{ display:"flex",gap:12,marginBottom:16 }}>
           <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / month"}</button>
-          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / year  (save 25%)"}</button>
+          <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:14,borderRadius:12,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:14,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$34.99 / year  (save 27%)"}</button>
         </div>
         <button onClick={onClose} style={{ background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontSize:13 }}>Maybe later</button>
       </div>
@@ -546,7 +546,7 @@ function BlurGate({ onUpgrade, loading, topScholarship }) {
           <p className="text-xs mb-4" style={{ color:"rgba(255,255,255,0.3)" }}>One win could pay for years of access.</p>
           <div style={{ display:"flex",gap:10,marginBottom:12,width:"100%",maxWidth:280 }}>
             <button onClick={()=>onUpgrade("monthly")} disabled={loading} style={{ flex:1,padding:"11px 8px",borderRadius:10,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:13,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$3.99 / mo"}</button>
-            <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:"11px 8px",borderRadius:10,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:13,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$8.99 / yr"}</button>
+            <button onClick={()=>onUpgrade("annual")} disabled={loading} style={{ flex:1,padding:"11px 8px",borderRadius:10,cursor:"pointer",background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.4)",color:"#d4af37",fontSize:13,fontWeight:700,opacity:loading?0.7:1 }}>{loading?"...":"$34.99 / yr"}</button>
           </div>
           <p className="text-xs" style={{ color:"rgba(255,255,255,0.2)" }}>Cancel anytime · Secure via Stripe</p>
         </div>

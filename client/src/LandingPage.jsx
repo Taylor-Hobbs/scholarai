@@ -565,7 +565,7 @@ export default function LandingPage() {
               <span className="lp-p-badge lp-p-badge-pro">Most Popular</span>
               <div className="lp-p-name">Pro</div>
               <div className="lp-p-amt"><span className="lp-sup">$</span><span className="lp-num">3.99</span><span className="lp-sub">/mo</span></div>
-              <div className="lp-p-period">or $8.99 / year — save 81%</div>
+              <div className="lp-p-period">or $34.99 / year — save 27%</div>
               <ul className="lp-p-list">
                 <li className="on">Unlimited AI-matched searches</li>
                 <li className="on">All results unlocked</li>
