@@ -87,12 +87,12 @@ function AgentCard({ agent, index }) {
   const c = isError?"#ef4444":"#4ade80";
   return (
     <div className="rounded-xl p-4" style={{ opacity:mounted?1:0,transform:mounted?"translateY(0)":"translateY(16px)",transition:"all 0.5s ease",background:"rgba(255,255,255,0.03)",border:`1px solid ${isError?"rgba(239,68,68,0.25)":"rgba(212,175,55,0.2)"}` }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div style={{ width:32,height:32,borderRadius:8,background:"rgba(212,175,55,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16 }}>{agent.icon}</div>
-          <div><div className="text-sm font-semibold text-white">{agent.name}</div><div className="text-xs" style={{ color:"rgba(255,255,255,0.35)" }}>{agent.task}</div></div>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div style={{ width:32,height:32,borderRadius:8,background:"rgba(212,175,55,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0 }}>{agent.icon}</div>
+          <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{agent.name}</div><div className="text-xs truncate" style={{ color:"rgba(255,255,255,0.35)" }}>{agent.task}</div></div>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <div style={{ width:6,height:6,borderRadius:"50%",background:c,boxShadow:`0 0 6px ${c}` }} />
           <span className="text-xs font-semibold" style={{ color:c }}>{isError?"Failed":"Live"}</span>
         </div>
@@ -1233,7 +1233,7 @@ export default function App() {
                   <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.35)" }}>Active Agents ({AGENT_SOURCES.length})</h3>
                   <div className="flex items-center gap-2"><div style={{ width:5,height:5,borderRadius:"50%",background:"#d4af37",animation:"pulse-dot 1.5s infinite" }} /><span className="text-xs font-semibold" style={{ color:"#d4af37" }}>Searching in parallel</span></div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">{AGENT_SOURCES.map((a,i)=><AgentCard key={i} agent={a} index={i} />)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{AGENT_SOURCES.map((a,i)=><AgentCard key={i} agent={a} index={i} />)}</div>
               </div>
             )}
 
