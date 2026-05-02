@@ -1233,7 +1233,7 @@ export default function App() {
                   <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.35)" }}>Active Agents ({AGENT_SOURCES.length})</h3>
                   <div className="flex items-center gap-2"><div style={{ width:5,height:5,borderRadius:"50%",background:"#d4af37",animation:"pulse-dot 1.5s infinite" }} /><span className="text-xs font-semibold" style={{ color:"#d4af37" }}>Searching in parallel</span></div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{AGENT_SOURCES.map((a,i)=><AgentCard key={i} agent={a} index={i} />)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{AGENT_SOURCES.map((a,i)=><div key={i} className={i>=3?"hidden sm:block":""}><AgentCard agent={a} index={i} /></div>)}</div>
               </div>
             )}
 
