@@ -935,6 +935,7 @@ export default function App() {
   const [phase, setPhase] = useState("idle");
   const [loadingMsg, setLoadingMsg] = useState("");
   const [results, setResults] = useState([]);
+  const [totalFound, setTotalFound] = useState(null);
   const [error, setError] = useState("");
   const [stripeLoading, setStripeLoading] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
@@ -1079,6 +1080,7 @@ export default function App() {
         throw new Error(data.error||data.message);
       }
       setResults(data.scholarships||[]);
+      if (data.totalFound) setTotalFound(data.totalFound);
       setUser(u=>({...u,searchCount:(u.searchCount||0)+1}));
     } catch(e) { setError(e.message); }
     finally { clearInterval(intervalRef.current); setPhase(p=>p==="searching"?"results":p); }
@@ -1095,7 +1097,7 @@ export default function App() {
     finally { setStripeLoading(false); }
   };
 
-  const reset = () => { setPhase("idle"); setResults([]); setError(""); };
+  const reset = () => { setPhase("idle"); setResults([]); setError(""); setTotalFound(null); };
 
   if (!authReady) return <div style={{ minHeight:"100vh",background:"radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%)",display:"flex",alignItems:"center",justifyContent:"center" }}><div style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>Loading...</div></div>;
 
@@ -1204,6 +1206,7 @@ export default function App() {
                           if (data.error==="FREE_LIMIT_REACHED"||data.error==="PRO_REQUIRED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return; }
                           if (!data.scholarships) throw new Error(data.error||data.message||"No results");
                           setResults(data.scholarships);
+                          if (data.totalFound) setTotalFound(data.totalFound);
                           setUser(u=>({...u,searchCount:(u.searchCount||0)+1,scholarProfile:p}));
                         })
                         .catch(e=>{ setError(e.message); })
@@ -1253,13 +1256,13 @@ export default function App() {
                       <div className="flex items-start justify-between mb-6 gap-3">
                         <div>
                           <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"#d4af37" }}>Match complete</div>
-                          <h2 className="font-display text-2xl sm:text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{results.length} Matched</h2>
+                          <h2 className="font-display text-2xl sm:text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{totalFound ?? results.length} Matched</h2>
                           <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
                         </div>
                         <div className="text-xs font-bold px-3 py-1.5 rounded-xl shrink-0" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
                       </div>
                       <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onReminder={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setReminderScholarship(s);}}} reminderIds={reminderIds} />)}</div>
-                      {!user?.isPro&&results.length>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} topScholarship={results[FREE_LIMIT]} />
+                      {!user?.isPro&&(totalFound??results.length)>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} topScholarship={results[FREE_LIMIT]} />
                         : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayScholarship(s)} isPro={user?.isPro} onReminder={s=>setReminderScholarship(s)} reminderIds={reminderIds} /></div>)}
                       <div className="mt-8 rounded-2xl p-5 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
                         <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
