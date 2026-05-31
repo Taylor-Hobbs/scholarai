@@ -31,7 +31,7 @@ function useIsMobile() {
 // ─── SidebarBody ────────────────────────────────────────────────────────────────
 function SidebarBody({
   isPro, user, recentSearches, activeRecent, onSelectRecent,
-  onNewSearch, onUpgrade, onGoProfile, onLogout, reminders, mobile,
+  onNewSearch, onUpgrade, onGoProfile, onLogout, reminders, mobile, onViewScholarship,
 }) {
   const saved = user?.savedScholarships || [];
 
@@ -122,10 +122,13 @@ function SidebarBody({
           {saved.length === 0
             ? <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", padding: "4px 2px" }}>Nothing saved yet</div>
             : saved.slice(0, 2).map((s, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "7px 8px", borderRadius: 7,
-              }}>
+              <button key={i} onClick={() => onViewScholarship?.(s)} style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 8,
+                padding: "7px 8px", borderRadius: 7, cursor: "pointer",
+                background: "transparent", border: "none", textAlign: "left",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                 <span style={{ color: "#d4af37", fontSize: 13, flexShrink: 0 }}>★</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
@@ -137,7 +140,7 @@ function SidebarBody({
                     fontFamily: "'Playfair Display', serif", fontWeight: 700,
                   }}>{s.amount}</div>
                 </div>
-              </div>
+              </button>
             ))
           }
         </div>
@@ -590,7 +593,7 @@ export default function KalomaLayout({
   user, phase, results, totalFound, savedIds, reminderIds,
   recentSearches, reminders, loadingMsg, searchContext,
   onSearch, onSave, onEssay, onReminder, onUpgrade,
-  onNewSearch, onShowAuth, onGoProfile, onLogout,
+  onNewSearch, onShowAuth, onGoProfile, onLogout, onViewScholarship,
 }) {
   const isMobile = useIsMobile();
   const isPro = user?.isPro;
@@ -631,6 +634,7 @@ export default function KalomaLayout({
     onGoProfile,
     onLogout,
     reminders: reminders || [],
+    onViewScholarship,
   };
 
   return (

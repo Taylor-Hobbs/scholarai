@@ -950,6 +950,17 @@ export default function App() {
         if (data.user) {
           setUser(data.user);
           setSavedIds(new Set((data.user.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
+          // Hydrate recent searches from DB so they survive page reload
+          const stored = (data.user.recentSearches || []).slice(0, 4).map(s => {
+            const q = s.query || {};
+            const label = [q.fieldOfStudy, q.nationality, q.region, q.university]
+              .filter(Boolean).slice(0, 2).join(" · ") || "Search";
+            const date = s.searchedAt
+              ? new Date(s.searchedAt).toLocaleDateString("en-AU", { day:"numeric", month:"short" })
+              : "Recent";
+            return { label, count: s.results?.length || 0, date };
+          });
+          setRecentSearches(stored);
           if (data.user.isPro) {
             api("/api/reminders").then(r=>r.json()).then(d => {
               setReminders(d.reminders || []);
@@ -1084,6 +1095,7 @@ export default function App() {
           onShowAuth={() => setShowAuth(true)}
           onGoProfile={() => setPage("profile")}
           onLogout={logout}
+          onViewScholarship={s => setDeeplinkedScholarship(s)}
         />
       </>
     );
