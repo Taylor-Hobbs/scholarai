@@ -241,7 +241,7 @@ function SidebarBody({
 }
 
 // ─── Result Card ─────────────────────────────────────────────────────────────────
-function ResultCard({ s, expanded, onToggle, isPro, onSave, onEssay, onReminder, savedIds, reminderIds }) {
+function ResultCard({ s, expanded, onToggle, isPro, onSave, onEssay, onReminder, savedIds, reminderIds, onApply }) {
   const accent = TYPE_COLORS[s.type] || "#d4af37";
   const isSaved = savedIds?.has(`${s.name}||${s.institution}`);
   const hasReminder = reminderIds?.has(`${s.name}||${s.institution}`);
@@ -317,15 +317,13 @@ function ResultCard({ s, expanded, onToggle, isPro, onSave, onEssay, onReminder,
 
           {/* Actions */}
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <a href={s.url} target="_blank" rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={{
-                padding: "7px 14px", borderRadius: 7,
-                background: accent, color: "#0a0f1e",
-                fontSize: 12, fontWeight: 700, textDecoration: "none",
-                whiteSpace: "nowrap", minHeight: 36,
-                display: "flex", alignItems: "center",
-              }}>Apply →</a>
+            <button onClick={e => { e.stopPropagation(); onApply(s); }} style={{
+              padding: "7px 14px", borderRadius: 7,
+              background: accent, color: "#0a0f1e",
+              fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
+              whiteSpace: "nowrap", minHeight: 36,
+              display: "flex", alignItems: "center",
+            }}>Apply →</button>
 
             <button onClick={e => { e.stopPropagation(); onSave(s); }} style={{
               padding: "7px 12px", borderRadius: 7,
@@ -395,7 +393,7 @@ function SearchingView({ loadingMsg }) {
 // ─── Results View ────────────────────────────────────────────────────────────────
 function ResultsView({
   results, totalFound, isPro, expandedCardId, onToggleCard,
-  onSave, onEssay, onReminder, savedIds, reminderIds, onUpgrade,
+  onSave, onEssay, onReminder, savedIds, reminderIds, onUpgrade, onApply,
 }) {
   const limit = isPro ? PRO_LIMIT : FREE_LIMIT;
   const visibleResults = results.slice(0, limit);
@@ -409,7 +407,7 @@ function ResultsView({
           expanded={expandedCardId === i}
           onToggle={() => onToggleCard(i)}
           isPro={isPro} onSave={onSave} onEssay={onEssay} onReminder={onReminder}
-          savedIds={savedIds} reminderIds={reminderIds}
+          savedIds={savedIds} reminderIds={reminderIds} onApply={onApply}
         />
       ))}
 
@@ -422,7 +420,7 @@ function ResultsView({
           expanded={expandedCardId === i + limit}
           onToggle={() => onToggleCard(i + limit)}
           isPro={isPro} onSave={onSave} onEssay={onEssay} onReminder={onReminder}
-          savedIds={savedIds} reminderIds={reminderIds}
+          savedIds={savedIds} reminderIds={reminderIds} onApply={onApply}
         />
       ))}
     </div>
@@ -689,6 +687,7 @@ export default function KalomaLayout({
               onSave={onSave} onEssay={onEssay} onReminder={onReminder}
               savedIds={savedIds} reminderIds={reminderIds}
               onUpgrade={onUpgrade}
+              onApply={onViewScholarship}
             />
           )}
         </div>
