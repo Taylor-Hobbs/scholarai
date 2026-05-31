@@ -626,7 +626,7 @@ export default function KalomaLayout({
     recentSearches: recentSearches || [],
     activeRecent,
     onSelectRecent: i => setActiveRecent(i),
-    onNewSearch: () => { setPromptQuery(""); onNewSearch(); },
+    onNewSearch,
     onUpgrade,
     onGoProfile,
     onLogout,
