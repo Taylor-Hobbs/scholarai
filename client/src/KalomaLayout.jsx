@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { KLogo, MatchRing, TBadge, ProPill, UpgradeNudge, TYPE_COLORS } from "./atoms";
+import { ScholarProfileForm } from "./ScholarProfileForm";
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 const SIDEBAR_W = 242;
@@ -8,11 +9,6 @@ const HEADER_H = 52;
 const BREAKPOINT = 960;
 const FREE_LIMIT = 3;
 const PRO_LIMIT = 5;
-
-const STUDY_LEVELS = [
-  "Undergraduate", "Graduate / Masters", "PhD / Doctoral",
-  "High School", "Vocational / TAFE",
-];
 
 const QUICK_FILTER_TYPES = [
   { type: "Merit-Based", color: "#d4af37" },
@@ -370,113 +366,6 @@ function ResultCard({ s, expanded, onToggle, isPro, onSave, onEssay, onReminder,
   );
 }
 
-// ─── Search Form View ────────────────────────────────────────────────────────────
-function SearchFormView({ onSearch, user, onShowAuth }) {
-  const [form, setForm] = useState({ studyLevel: "", fieldOfStudy: "", nationality: "", university: "" });
-  const [errors, setErrors] = useState({});
-
-  const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: "" })); };
-
-  const submit = () => {
-    if (!user) return onShowAuth();
-    const errs = {};
-    if (!form.studyLevel) errs.studyLevel = "Required";
-    if (!form.fieldOfStudy.trim()) errs.fieldOfStudy = "Required";
-    if (!form.nationality.trim()) errs.nationality = "Required";
-    setErrors(errs);
-    if (Object.keys(errs).length) return;
-    onSearch({
-      studyLevel: form.studyLevel,
-      fieldOfStudy: form.fieldOfStudy,
-      nationality: form.nationality,
-      studyCountry: form.nationality,
-      university: form.university,
-    });
-  };
-
-  const inp = {
-    width: "100%", padding: "11px 14px", borderRadius: 8, boxSizing: "border-box",
-    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-    color: "white", fontSize: 13, outline: "none", fontFamily: "inherit",
-    transition: "border-color 0.2s",
-  };
-  const lbl = {
-    display: "block", fontSize: 11, fontWeight: 700,
-    textTransform: "uppercase", letterSpacing: "0.08em",
-    color: "rgba(255,255,255,0.4)", marginBottom: 6,
-  };
-
-  return (
-    <div style={{ maxWidth: 520, margin: "0 auto", padding: "28px 20px 24px" }}>
-      <div style={{
-        fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-        letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)", marginBottom: 24,
-      }}>TELL US ABOUT YOURSELF</div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div>
-          <label style={lbl}>Study Level <span style={{ color: "#d4af37" }}>*</span></label>
-          <select value={form.studyLevel} onChange={e => set("studyLevel", e.target.value)}
-            style={{ ...inp, appearance: "none" }}
-            onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}>
-            <option value="">Select...</option>
-            {STUDY_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-          {errors.studyLevel && <p style={{ color: "#fca5a5", fontSize: 11, margin: "4px 0 0" }}>{errors.studyLevel}</p>}
-        </div>
-
-        <div>
-          <label style={lbl}>Field of Study <span style={{ color: "#d4af37" }}>*</span></label>
-          <input type="text" placeholder="e.g. Computer Science, Medicine, Law"
-            value={form.fieldOfStudy} onChange={e => set("fieldOfStudy", e.target.value)}
-            style={inp}
-            onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
-            onKeyDown={e => e.key === "Enter" && submit()} />
-          {errors.fieldOfStudy && <p style={{ color: "#fca5a5", fontSize: 11, margin: "4px 0 0" }}>{errors.fieldOfStudy}</p>}
-        </div>
-
-        <div>
-          <label style={lbl}>Nationality <span style={{ color: "#d4af37" }}>*</span></label>
-          <input type="text" placeholder="e.g. Australian, Indian, Nigerian"
-            value={form.nationality} onChange={e => set("nationality", e.target.value)}
-            style={inp}
-            onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
-            onKeyDown={e => e.key === "Enter" && submit()} />
-          {errors.nationality && <p style={{ color: "#fca5a5", fontSize: 11, margin: "4px 0 0" }}>{errors.nationality}</p>}
-        </div>
-
-        <div>
-          <label style={lbl}>University</label>
-          <input type="text" placeholder="e.g. University of Melbourne, MIT"
-            value={form.university} onChange={e => set("university", e.target.value)}
-            style={inp}
-            onFocus={e => e.target.style.borderColor = "rgba(212,175,55,0.5)"}
-            onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
-            onKeyDown={e => e.key === "Enter" && submit()} />
-        </div>
-      </div>
-
-      <button onClick={submit} style={{
-        width: "100%", marginTop: 24, padding: "13px",
-        borderRadius: 8, border: "none",
-        background: "linear-gradient(135deg,#d4af37,#f5d060)",
-        color: "#0a0f1e", fontSize: 14, fontWeight: 700, cursor: "pointer",
-      }}>Find Scholarships →</button>
-
-      <p style={{ textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 10 }}>
-        {!user
-          ? "Free account required · No credit card needed"
-          : user.isPro
-          ? "Unlimited searches · All results unlocked"
-          : `${Math.max(0, 1 - (user.searchCount || 0))} free search remaining`}
-      </p>
-    </div>
-  );
-}
-
 // ─── Searching View ──────────────────────────────────────────────────────────────
 function SearchingView({ loadingMsg }) {
   return (
@@ -634,10 +523,10 @@ function Header({ phase, results, totalFound, isPro, searchContext, onHamburger,
 }
 
 // ─── Bottom Prompt Bar ───────────────────────────────────────────────────────────
-function BottomPromptBar({ onNewSearch, isMobile }) {
+function BottomPromptBar({ onPromptSearch, isMobile }) {
   const [text, setText] = useState("");
 
-  const submit = () => { onNewSearch(); setText(""); };
+  const submit = () => { onPromptSearch(text.trim()); setText(""); };
 
   if (isMobile) {
     return (
@@ -712,6 +601,24 @@ export default function KalomaLayout({
   useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
   useEffect(() => { setExpandedCardId(null); }, [phase]);
 
+  const handlePromptSearch = (text) => {
+    if (!text) { onNewSearch(); return; }
+    // Fire search directly — merge typed text into the user's last known profile
+    const base = user?.scholarProfile || {};
+    onSearch({
+      studyLevel: base.studyLevel || "",
+      nationality: base.nationality || "",
+      studyCountry: base.studyCountry || "",
+      university: base.university || "",
+      gpa: base.gpa || "",
+      financialNeed: base.financialNeed || "",
+      demographics: base.demographics || "",
+      achievements: base.achievements || "",
+      careerGoals: base.careerGoals || "",
+      fieldOfStudy: text,   // typed text always wins
+    });
+  };
+
   const toggleCard = id => setExpandedCardId(prev => prev === id ? null : id);
 
   const sidebarProps = {
@@ -719,7 +626,7 @@ export default function KalomaLayout({
     recentSearches: recentSearches || [],
     activeRecent,
     onSelectRecent: i => setActiveRecent(i),
-    onNewSearch,
+    onNewSearch: () => { setPromptQuery(""); onNewSearch(); },
     onUpgrade,
     onGoProfile,
     onLogout,
@@ -755,7 +662,13 @@ export default function KalomaLayout({
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: "auto", paddingBottom: isMobile ? 72 : 0 }}>
           {phase === "idle" && (
-            <SearchFormView onSearch={onSearch} user={user} onShowAuth={onShowAuth} />
+            <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 20px 24px" }}>
+              <ScholarProfileForm
+                existing={user?.scholarProfile || {}}
+                onSubmit={onSearch}
+                loading={false}
+              />
+            </div>
           )}
           {phase === "searching" && (
             <SearchingView loadingMsg={loadingMsg} />
@@ -772,7 +685,7 @@ export default function KalomaLayout({
           )}
         </div>
 
-        <BottomPromptBar onNewSearch={onNewSearch} isMobile={isMobile} />
+        <BottomPromptBar onPromptSearch={handlePromptSearch} isMobile={isMobile} />
       </div>
 
       {/* Mobile drawer */}
