@@ -29,9 +29,15 @@ function useIsMobile() {
 }
 
 // ─── SidebarBody ────────────────────────────────────────────────────────────────
+const hov = (base = "transparent") => ({
+  onMouseEnter: e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; },
+  onMouseLeave: e => { e.currentTarget.style.background = base; },
+});
+
 function SidebarBody({
   isPro, user, recentSearches, activeRecent, onSelectRecent,
-  onNewSearch, onUpgrade, onGoProfile, onLogout, reminders, mobile, onViewScholarship,
+  onNewSearch, onUpgrade, onGoProfile, onLogout, reminders, mobile,
+  onViewScholarship, filterType, onFilterType,
 }) {
   const saved = user?.savedScholarships || [];
 
@@ -82,7 +88,11 @@ function SidebarBody({
           border: "1px dashed rgba(212,175,55,0.45)",
           color: "#d4af37", fontSize: 12, fontWeight: 600,
           display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-        }}>
+          transition: "background 0.12s",
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(212,175,55,0.06)"}
+          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+        >
           <span style={{ fontSize: 15, lineHeight: 1 }}>+</span> New Search
         </button>
 
@@ -96,8 +106,11 @@ function SidebarBody({
                 width: "100%", display: "flex", alignItems: "center", gap: 8,
                 padding: "7px 8px", borderRadius: 7, cursor: "pointer",
                 background: activeRecent === i ? "rgba(212,175,55,0.08)" : "transparent",
-                border: "none", textAlign: "left",
-              }}>
+                border: "none", textAlign: "left", transition: "background 0.12s",
+              }}
+                onMouseEnter={e => { if (activeRecent !== i) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = activeRecent === i ? "rgba(212,175,55,0.08)" : "transparent"; }}
+              >
                 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>◎</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
@@ -183,16 +196,28 @@ function SidebarBody({
           <div style={{ ...sectionLabel, display: "flex", alignItems: "center", gap: 6 }}>
             QUICK FILTERS {!isPro && <ProPill />}
           </div>
-          {QUICK_FILTER_TYPES.map(({ type, color }) => (
-            <div key={type} style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "6px 8px", borderRadius: 7,
-              opacity: isPro ? 1 : 0.38, cursor: isPro ? "pointer" : "default",
-            }}>
-              <div style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>{type}</span>
-            </div>
-          ))}
+          {QUICK_FILTER_TYPES.map(({ type, color }) => {
+            const active = filterType === type;
+            const canUse = isPro;
+            return (
+              <button key={type}
+                onClick={() => canUse ? onFilterType(type) : onUpgrade("monthly")}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: 8,
+                  padding: "6px 8px", borderRadius: 7,
+                  background: active ? "rgba(255,255,255,0.07)" : "transparent",
+                  border: "none", cursor: "pointer", textAlign: "left",
+                  opacity: canUse ? 1 : 0.38, transition: "background 0.12s",
+                }}
+                onMouseEnter={e => { if (canUse) e.currentTarget.style.background = active ? "rgba(255,255,255,0.09)" : "rgba(255,255,255,0.05)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = active ? "rgba(255,255,255,0.07)" : "transparent"; }}
+              >
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: active ? color : color, flexShrink: 0, boxShadow: active ? `0 0 6px ${color}` : "none" }} />
+                <span style={{ fontSize: 12, color: active ? "white" : "rgba(255,255,255,0.7)", fontWeight: active ? 600 : 500 }}>{type}</span>
+                {active && <span style={{ marginLeft: "auto", fontSize: 9, color: "rgba(255,255,255,0.35)" }}>✕</span>}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -232,8 +257,11 @@ function SidebarBody({
             width: "100%", marginTop: 8, padding: "6px",
             background: "none", border: "none",
             color: "rgba(255,255,255,0.25)", fontSize: 11,
-            cursor: "pointer", borderRadius: 6,
-          }}>👤 {user.email.split("@")[0]} · Profile</button>
+            cursor: "pointer", borderRadius: 6, transition: "background 0.12s, color 0.12s",
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.color = "rgba(255,255,255,0.45)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "rgba(255,255,255,0.25)"; }}
+          >👤 {user.email.split("@")[0]} · Profile</button>
         )}
       </div>
     </div>
@@ -464,7 +492,7 @@ function SearchingView({ loadingMsg }) {
 }
 
 // ─── Results Controls (sort + filter) ───────────────────────────────────────────
-function ResultsControls({ results, sortBy, setSortBy, filterType, setFilterType }) {
+function ResultsControls({ results, sortBy, setSortBy, filterType, onFilterType }) {
   const types = [...new Set(results.map(s => s.type).filter(Boolean))];
 
   const pill = (active) => ({
@@ -498,7 +526,7 @@ function ResultsControls({ results, sortBy, setSortBy, filterType, setFilterType
 
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
         {["", ...types].map(t => (
-          <button key={t || "all"} onClick={() => setFilterType(t)} style={pill(filterType === t)}>
+          <button key={t || "all"} onClick={() => onFilterType(t === filterType && t !== "" ? "" : t)} style={pill(filterType === t)}>
             {t || "All"}
           </button>
         ))}
@@ -511,9 +539,9 @@ function ResultsControls({ results, sortBy, setSortBy, filterType, setFilterType
 function ResultsView({
   results, totalFound, isPro, expandedCardId, onToggleCard,
   onSave, onEssay, onReminder, savedIds, reminderIds, onUpgrade, onApply,
+  filterType, onFilterType,
 }) {
   const [sortBy, setSortBy] = useState("match");
-  const [filterType, setFilterType] = useState("");
 
   const parseAmount = str => parseInt((str || "").replace(/[^0-9]/g, "")) || 0;
   const parseDeadline = str => {
@@ -544,7 +572,7 @@ function ResultsView({
       <ResultsControls
         results={results}
         sortBy={sortBy} setSortBy={setSortBy}
-        filterType={filterType} setFilterType={setFilterType}
+        filterType={filterType} onFilterType={onFilterType}
       />
       <div style={{ padding: "12px 14px" }}>
         {visibleResults.map((s, i) => (
@@ -759,6 +787,7 @@ export default function KalomaLayout({
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeRecent, setActiveRecent] = useState(-1);
+  const [filterType, setFilterType] = useState("");
   const [chatMode, setChatMode] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -813,6 +842,8 @@ export default function KalomaLayout({
     onLogout,
     reminders: reminders || [],
     onViewScholarship,
+    filterType,
+    onFilterType: (t) => setFilterType(prev => prev === t ? "" : t),
   };
 
   return (
@@ -871,6 +902,8 @@ export default function KalomaLayout({
               savedIds={savedIds} reminderIds={reminderIds}
               onUpgrade={onUpgrade}
               onApply={onViewScholarship}
+              filterType={filterType}
+              onFilterType={t => setFilterType(prev => prev === t ? "" : t)}
             />
           )}
         </div>
