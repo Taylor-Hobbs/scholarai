@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { KLogo, MatchRing, TBadge, ProPill, UpgradeNudge, TYPE_COLORS } from "./atoms";
 import { ScholarProfileForm } from "./ScholarProfileForm";
 
@@ -367,6 +367,79 @@ function ResultCard({ s, expanded, onToggle, isPro, onSave, onEssay, onReminder,
   );
 }
 
+// ─── Chat Mode ───────────────────────────────────────────────────────────────────
+function ChatMode({ messages, loading, onUseForm }) {
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      {/* Header */}
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "14px 16px 10px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        flexShrink: 0,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#d4af37", letterSpacing: "0.04em" }}>
+            ✦ Kaloma Search Agent
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+            A few quick questions to find your best matches
+          </div>
+        </div>
+        <button onClick={onUseForm} style={{
+          background: "none", border: "1px solid rgba(255,255,255,0.1)",
+          color: "rgba(255,255,255,0.35)", fontSize: 11, cursor: "pointer",
+          padding: "5px 10px", borderRadius: 7, whiteSpace: "nowrap",
+        }}>Use form instead</button>
+      </div>
+
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            display: "flex",
+            justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+            alignItems: "flex-end", gap: 8,
+          }}>
+            {m.role === "assistant" && <KLogo size={26} />}
+            <div style={{
+              maxWidth: "78%", padding: "9px 13px",
+              borderRadius: m.role === "user" ? "14px 14px 4px 14px" : "4px 14px 14px 14px",
+              background: m.role === "user"
+                ? "rgba(212,175,55,0.12)"
+                : "rgba(255,255,255,0.05)",
+              border: `1px solid ${m.role === "user" ? "rgba(212,175,55,0.2)" : "rgba(255,255,255,0.08)"}`,
+              fontSize: 13, color: "white", lineHeight: 1.55,
+            }}>{m.content}</div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+            <KLogo size={26} />
+            <div style={{
+              padding: "10px 14px", borderRadius: "4px 14px 14px 14px",
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex", gap: 5, alignItems: "center",
+            }}>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  width: 5, height: 5, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.35)",
+                  animation: `pulse-dot 1.2s ${i * 0.18}s ease infinite`,
+                }} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Searching View ──────────────────────────────────────────────────────────────
 function SearchingView({ loadingMsg }) {
   return (
@@ -597,10 +670,18 @@ function Header({ phase, results, totalFound, isPro, searchContext, onHamburger,
 }
 
 // ─── Bottom Prompt Bar ───────────────────────────────────────────────────────────
-function BottomPromptBar({ onPromptSearch, isMobile }) {
+function BottomPromptBar({ onPromptSearch, isMobile, chatMode, chatLoading }) {
   const [text, setText] = useState("");
+  const inputRef = useRef(null);
 
-  const submit = () => { onPromptSearch(text.trim()); setText(""); };
+  // Focus input whenever chat mode activates
+  useEffect(() => { if (chatMode) inputRef.current?.focus(); }, [chatMode]);
+
+  const submit = () => {
+    if (chatLoading) return;
+    onPromptSearch(text.trim());
+    setText("");
+  };
 
   if (isMobile) {
     return (
@@ -617,15 +698,18 @@ function BottomPromptBar({ onPromptSearch, isMobile }) {
           border: "1px solid rgba(255,255,255,0.08)",
         }}>
           <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 14 }}>◎</span>
-          <input type="text" placeholder="New search…"
+          <input ref={inputRef} type="text"
+            placeholder={chatMode ? "Reply to Kaloma…" : "New search…"}
             value={text} onChange={e => setText(e.target.value)}
             onKeyDown={e => e.key === "Enter" && submit()}
             style={{ flex: 1, background: "none", border: "none", outline: "none", color: "white", fontSize: 13 }} />
-          <button onClick={submit} style={{
+          <button onClick={submit} disabled={chatLoading} style={{
             width: 32, height: 32, borderRadius: "50%",
-            background: "linear-gradient(135deg,#d4af37,#f5d060)",
+            background: chatLoading ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg,#d4af37,#f5d060)",
             border: "none", color: "#0a0f1e", fontSize: 15,
-            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            cursor: chatLoading ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+            transition: "background 0.2s",
           }}>↑</button>
         </div>
       </div>
@@ -644,16 +728,20 @@ function BottomPromptBar({ onPromptSearch, isMobile }) {
         border: "1px solid rgba(255,255,255,0.08)",
       }}>
         <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 15, flexShrink: 0 }}>◎</span>
-        <input type="text" placeholder="e.g. 'PhD funding in Europe for ML research…'"
+        <input ref={inputRef} type="text"
+          placeholder={chatMode ? "Reply to Kaloma…" : "e.g. 'PhD funding in Europe for ML research…'"}
           value={text} onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === "Enter" && submit()}
           style={{ flex: 1, background: "none", border: "none", outline: "none", color: "white", fontSize: 13 }} />
-        <button onClick={submit} style={{
+        <button onClick={submit} disabled={chatLoading} style={{
           padding: "7px 16px", borderRadius: 8,
-          background: "linear-gradient(135deg,#d4af37,#f5d060)",
-          border: "none", color: "#0a0f1e", fontSize: 12, fontWeight: 700,
-          cursor: "pointer", flexShrink: 0,
-        }}>Search</button>
+          background: chatLoading ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg,#d4af37,#f5d060)",
+          border: chatLoading ? "1px solid rgba(255,255,255,0.1)" : "none",
+          color: chatLoading ? "rgba(255,255,255,0.3)" : "#0a0f1e",
+          fontSize: 12, fontWeight: 700,
+          cursor: chatLoading ? "not-allowed" : "pointer", flexShrink: 0,
+          transition: "all 0.2s",
+        }}>{chatLoading ? "…" : chatMode ? "Send" : "Search"}</button>
       </div>
     </div>
   );
@@ -664,33 +752,48 @@ export default function KalomaLayout({
   user, phase, results, totalFound, savedIds, reminderIds,
   recentSearches, reminders, loadingMsg, searchContext,
   onSearch, onSave, onEssay, onReminder, onUpgrade,
-  onNewSearch, onShowAuth, onGoProfile, onLogout, onViewScholarship, onLoadRecent,
+  onNewSearch, onShowAuth, onGoProfile, onLogout, onViewScholarship, onLoadRecent, onChat,
 }) {
   const isMobile = useIsMobile();
   const isPro = user?.isPro;
   const [expandedCardId, setExpandedCardId] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeRecent, setActiveRecent] = useState(-1);
+  const [chatMode, setChatMode] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => { if (!isMobile) setDrawerOpen(false); }, [isMobile]);
   useEffect(() => { setExpandedCardId(null); }, [phase]);
 
-  const handlePromptSearch = (text) => {
-    if (!text) { onNewSearch(); return; }
-    // Fire search directly — merge typed text into the user's last known profile
-    const base = user?.scholarProfile || {};
-    onSearch({
-      studyLevel: base.studyLevel || "",
-      nationality: base.nationality || "",
-      studyCountry: base.studyCountry || "",
-      university: base.university || "",
-      gpa: base.gpa || "",
-      financialNeed: base.financialNeed || "",
-      demographics: base.demographics || "",
-      achievements: base.achievements || "",
-      careerGoals: base.careerGoals || "",
-      fieldOfStudy: text,   // typed text always wins
-    });
+  const exitChat = () => { setChatMode(false); setChatMessages([]); };
+
+  const handlePromptSearch = async (text) => {
+    if (!text) { exitChat(); onNewSearch(); return; }
+
+    // Enter chat mode and send first (or subsequent) message
+    const newMessages = [...chatMessages, { role: "user", content: text }];
+    setChatMode(true);
+    setChatMessages(newMessages);
+    setChatLoading(true);
+
+    try {
+      const result = await onChat(newMessages);
+      const agentMsg = { role: "assistant", content: result.message };
+      setChatMessages(prev => [...prev, agentMsg]);
+
+      if (result.ready && result.profile) {
+        // Brief pause so the user sees the "Searching now!" message, then fire
+        setTimeout(() => {
+          exitChat();
+          onSearch(result.profile);
+        }, 1200);
+      }
+    } catch {
+      setChatMessages(prev => [...prev, { role: "assistant", content: "Something went wrong. Please try again." }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const toggleCard = id => setExpandedCardId(prev => prev === id ? null : id);
@@ -702,9 +805,9 @@ export default function KalomaLayout({
     onSelectRecent: i => {
       setActiveRecent(i);
       const recent = (recentSearches || [])[i];
-      if (recent?.results?.length) onLoadRecent(recent);
+      if (recent?.results?.length) { exitChat(); onLoadRecent(recent); }
     },
-    onNewSearch,
+    onNewSearch: () => { exitChat(); onNewSearch(); },
     onUpgrade,
     onGoProfile,
     onLogout,
@@ -739,8 +842,15 @@ export default function KalomaLayout({
         />
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: "auto", paddingBottom: isMobile ? 72 : 0 }}>
-          {phase === "idle" && (
+        <div style={{ flex: 1, overflowY: "auto", paddingBottom: isMobile ? 72 : 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
+          {phase === "idle" && chatMode && (
+            <ChatMode
+              messages={chatMessages}
+              loading={chatLoading}
+              onUseForm={() => { exitChat(); }}
+            />
+          )}
+          {phase === "idle" && !chatMode && (
             <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 20px 24px" }}>
               <ScholarProfileForm
                 existing={user?.scholarProfile || {}}
@@ -765,7 +875,12 @@ export default function KalomaLayout({
           )}
         </div>
 
-        <BottomPromptBar onPromptSearch={handlePromptSearch} isMobile={isMobile} />
+        <BottomPromptBar
+          onPromptSearch={handlePromptSearch}
+          isMobile={isMobile}
+          chatMode={chatMode}
+          chatLoading={chatLoading}
+        />
       </div>
 
       {/* Mobile drawer */}

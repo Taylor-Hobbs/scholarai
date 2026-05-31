@@ -242,6 +242,52 @@ app.post("/api/scholar-profile", requireAuth, async (req, res) => {
   res.json({ user: safeUser(updated) });
 });
 
+// ─── Search Chat Agent ────────────────────────────────────────────────────────
+app.post("/api/chat", async (req, res) => {
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || !messages.length) {
+    return res.status(400).json({ error: "Messages required" });
+  }
+
+  const system = `You are Kaloma's scholarship search assistant. Your job is to gather a student's key details through friendly conversation so you can find their best scholarship matches.
+
+Required fields to collect before searching:
+1. studyLevel — must be exactly one of: "Undergraduate", "Graduate / Masters", "PhD / Doctoral", "High School", "Vocational / TAFE"
+2. fieldOfStudy — e.g. "Computer Science", "Medicine", "Law"
+3. nationality — their citizenship/passport country
+4. studyCountry — the country they are currently studying in
+
+Also collect if the user mentions them (optional):
+- university, gpa, financialNeed (one of: "No financial need", "Some financial need", "Significant financial need", "Prefer not to say"), careerGoals, achievements, demographics
+
+Conversation rules:
+- Be warm and concise — max 2 short sentences per reply
+- Ask only 1–2 questions at a time, never more
+- Extract info intelligently from what the user says (e.g. "doing my PhD in ML" → studyLevel=PhD / Doctoral, fieldOfStudy=Machine Learning)
+- Once you have all 4 required fields confirmed, set ready=true immediately
+
+CRITICAL: Always respond with ONLY valid JSON, no other text, no markdown:
+{"message":"your reply here","ready":false,"collected":{"studyLevel":"","fieldOfStudy":"","nationality":"","studyCountry":"","university":"","gpa":"","financialNeed":"","careerGoals":"","achievements":"","demographics":""}}
+
+When all 4 required fields are collected, respond with ready=true and all collected fields filled in:
+{"message":"Perfect, I have everything I need — searching now!","ready":true,"collected":{"studyLevel":"PhD / Doctoral","fieldOfStudy":"Machine Learning","nationality":"Australian","studyCountry":"Australia","university":"","gpa":"","financialNeed":"","careerGoals":"","achievements":"","demographics":""}}`;
+
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 400, system, messages }),
+    });
+    if (!response.ok) return res.status(500).json({ error: "AI error" });
+    const data = await response.json();
+    const text = data.content?.map(b => b.text || "").join("").trim() || "";
+    const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+    res.json({ message: parsed.message || "Tell me about yourself.", ready: !!parsed.ready, profile: parsed.ready ? parsed.collected : null });
+  } catch (e) {
+    res.json({ message: "Tell me about yourself — what are you studying and where are you from?", ready: false, profile: null });
+  }
+});
+
 app.post("/api/match", requireAuth, async (req, res) => {
   const user = await findUserById(req.user.id);
   if (!user.is_pro && (user.search_count || 0) >= FREE_SEARCH_LIMIT) {

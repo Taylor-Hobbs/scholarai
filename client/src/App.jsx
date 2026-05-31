@@ -1033,6 +1033,11 @@ export default function App() {
 
   const reset = () => { setPhase("idle"); setResults([]); setError(""); setTotalFound(null); };
 
+  const sendChat = async (messages) => {
+    const res = await api("/api/chat", { method: "POST", body: JSON.stringify({ messages }) });
+    return await res.json();
+  };
+
   const loadRecent = (recent) => {
     setResults(recent.results || []);
     setTotalFound(recent.results?.length || null);
@@ -1105,6 +1110,7 @@ export default function App() {
           onLogout={logout}
           onViewScholarship={s => setDeeplinkedScholarship(s)}
           onLoadRecent={loadRecent}
+          onChat={sendChat}
         />
       </>
     );
