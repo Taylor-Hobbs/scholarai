@@ -593,7 +593,7 @@ export default function KalomaLayout({
   user, phase, results, totalFound, savedIds, reminderIds,
   recentSearches, reminders, loadingMsg, searchContext,
   onSearch, onSave, onEssay, onReminder, onUpgrade,
-  onNewSearch, onShowAuth, onGoProfile, onLogout, onViewScholarship,
+  onNewSearch, onShowAuth, onGoProfile, onLogout, onViewScholarship, onLoadRecent,
 }) {
   const isMobile = useIsMobile();
   const isPro = user?.isPro;
@@ -628,7 +628,11 @@ export default function KalomaLayout({
     isPro, user,
     recentSearches: recentSearches || [],
     activeRecent,
-    onSelectRecent: i => setActiveRecent(i),
+    onSelectRecent: i => {
+      setActiveRecent(i);
+      const recent = (recentSearches || [])[i];
+      if (recent?.results?.length) onLoadRecent(recent);
+    },
     onNewSearch,
     onUpgrade,
     onGoProfile,

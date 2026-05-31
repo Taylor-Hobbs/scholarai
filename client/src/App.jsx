@@ -958,7 +958,7 @@ export default function App() {
             const date = s.searchedAt
               ? new Date(s.searchedAt).toLocaleDateString("en-AU", { day:"numeric", month:"short" })
               : "Recent";
-            return { label, count: s.results?.length || 0, date };
+            return { label, count: s.results?.length || 0, date, results: s.results || [] };
           });
           setRecentSearches(stored);
           if (data.user.isPro) {
@@ -1033,6 +1033,13 @@ export default function App() {
 
   const reset = () => { setPhase("idle"); setResults([]); setError(""); setTotalFound(null); };
 
+  const loadRecent = (recent) => {
+    setResults(recent.results || []);
+    setTotalFound(recent.results?.length || null);
+    setSearchContext(recent.label || "");
+    setPhase("results");
+  };
+
   const runSearch = async (scholarProfile) => {
     if (!user) return setShowAuth(true);
     setError(""); setPhase("searching"); setResults([]);
@@ -1059,6 +1066,7 @@ export default function App() {
         label: ctx || "Search",
         count: data.totalFound || (data.scholarships || []).length,
         date: "Today",
+        results: data.scholarships || [],
       }, ...prev.slice(0, 3)]);
     } catch(e) { setError(e.message); setPhase("idle"); }
     finally { clearInterval(intervalRef.current); setPhase(p => p === "searching" ? "results" : p); }
@@ -1096,6 +1104,7 @@ export default function App() {
           onGoProfile={() => setPage("profile")}
           onLogout={logout}
           onViewScholarship={s => setDeeplinkedScholarship(s)}
+          onLoadRecent={loadRecent}
         />
       </>
     );
