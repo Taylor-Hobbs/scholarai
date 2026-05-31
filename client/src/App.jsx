@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import * as THREE from 'three';
+import KalomaLayout from './KalomaLayout';
+import { ScholarProfileForm } from './ScholarProfileForm';
 
 const SCHOLARSHIP_TYPES = ["Merit-Based","Need-Based","Athletic","STEM / Engineering","Arts & Humanities","Graduate / Postgraduate","Undergraduate","International Students","Women in STEM","Minority / Diversity","Community Service","Research","Government / National"];
 const AGENT_SOURCES = [
@@ -565,90 +567,7 @@ function BlurGate({ onUpgrade, loading, topScholarship }) {
   );
 }
 
-// ─── Scholar Profile Questionnaire ───────────────────────────────────────────
-const STEPS = [
-  { id:"academic", label:"Academic", icon:"🎓", title:"Academic Background", fields:[
-    { key:"studyLevel", label:"Study Level", type:"select", required:true, options:["Undergraduate","Graduate / Masters","PhD / Doctoral","High School","Vocational / TAFE"] },
-    { key:"fieldOfStudy", label:"Field of Study", type:"text", required:true, placeholder:"e.g. Computer Science, Medicine, Law" },
-    { key:"university", label:"University (if enrolled)", type:"text", placeholder:"e.g. Monash University, University of Melbourne" },
-    { key:"gpa", label:"GPA / Academic Score", type:"text", placeholder:"e.g. 3.8 / 4.0  or  85 WAM  or  Distinction average" },
-  ]},
-  { id:"personal", label:"Personal", icon:"🌍", title:"Personal Details", fields:[
-    { key:"nationality", label:"Nationality / Citizenship", type:"text", required:true, placeholder:"e.g. Australian, Indian, Nigerian" },
-    { key:"studyCountry", label:"Country You're Studying In", type:"text", required:true, placeholder:"e.g. Australia, United States, UK" },
-    { key:"financialNeed", label:"Financial Need", type:"select", required:true, options:["No financial need","Some financial need","Significant financial need","Prefer not to say"] },
-    { key:"demographics", label:"Demographic Background (optional)", type:"text", placeholder:"e.g. First-generation student, Indigenous, Women in STEM, LGBTQ+" },
-  ]},
-  { id:"goals", label:"Goals", icon:"✦", title:"Achievements & Goals", fields:[
-    { key:"achievements", label:"Extracurriculars & Achievements", type:"textarea", placeholder:"e.g. Debate captain, published research, community volunteer, startup founder..." },
-    { key:"careerGoals", label:"Career Goals", type:"textarea", placeholder:"e.g. Become a climate scientist, found a tech startup, practice international law..." },
-  ]},
-];
-
-function ScholarProfileForm({ existing, onSubmit, onCancel, loading }) {
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState(existing || {});
-  const [errors, setErrors] = useState({});
-  const currentStep = STEPS[step];
-  const set = (key, val) => { setForm(f=>({...f,[key]:val})); setErrors(e=>({...e,[key]:""})); };
-  const validate = () => {
-    const errs = {};
-    currentStep.fields.forEach(f => { if (f.required && !form[f.key]?.trim()) errs[f.key] = "This field is required"; });
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-  const next = () => { if (validate()) setStep(s=>s+1); };
-  const back = () => setStep(s=>s-1);
-  const submit = () => { if (validate()) onSubmit(form); };
-  const inp = (extra={}) => ({ width:"100%",padding:"12px 16px",borderRadius:10,background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",color:"white",fontSize:14,outline:"none",boxSizing:"border-box",...extra });
-  return (
-    <div>
-      <div style={{ display:"flex",alignItems:"center",gap:8,marginBottom:28,flexWrap:"wrap" }}>
-        {STEPS.map((s,i) => (
-          <div key={s.id} style={{ display:"flex",alignItems:"center",gap:6 }}>
-            <div style={{ width:30,height:30,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0,
-              background:i<step?"rgba(74,222,128,0.2)":i===step?"rgba(212,175,55,0.2)":"rgba(255,255,255,0.05)",
-              border:`2px solid ${i<step?"#4ade80":i===step?"#d4af37":"rgba(255,255,255,0.1)"}`,
-              color:i<step?"#4ade80":i===step?"#d4af37":"rgba(255,255,255,0.3)" }}>
-              {i<step?"✓":s.icon}
-            </div>
-            <span style={{ fontSize:12,fontWeight:600,color:i===step?"#d4af37":"rgba(255,255,255,0.3)" }} className="hidden sm:inline">{s.label}</span>
-            {i<STEPS.length-1 && <div style={{ width:20,height:1,background:i<step?"rgba(74,222,128,0.4)":"rgba(255,255,255,0.1)",marginLeft:2 }} />}
-          </div>
-        ))}
-      </div>
-      <h3 className="font-display text-xl font-bold text-white mb-5">{currentStep.title}</h3>
-      <div className="flex flex-col gap-4">
-        {currentStep.fields.map(field => (
-          <div key={field.key}>
-            <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color:"rgba(255,255,255,0.4)" }}>
-              {field.label}{field.required&&<span style={{ color:"#d4af37" }}> *</span>}
-            </label>
-            {field.type==="select" ? (
-              <select value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} style={{ ...inp(),appearance:"none" }}>
-                <option value="">Select...</option>
-                {field.options.map(o=><option key={o} value={o}>{o}</option>)}
-              </select>
-            ) : field.type==="textarea" ? (
-              <textarea value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} rows={3} style={{ ...inp(),resize:"vertical",fontFamily:"inherit" }} />
-            ) : (
-              <input type="text" value={form[field.key]||""} onChange={e=>set(field.key,e.target.value)} placeholder={field.placeholder} style={inp()} onFocus={e=>e.target.style.borderColor="rgba(212,175,55,0.5)"} onBlur={e=>e.target.style.borderColor="rgba(255,255,255,0.12)"} />
-            )}
-            {errors[field.key] && <p style={{ color:"#fca5a5",fontSize:12,marginTop:4 }}>{errors[field.key]}</p>}
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-3 mt-7">
-        {step > 0 && <button onClick={back} style={{ flex:1,padding:12,borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"transparent",color:"rgba(255,255,255,0.5)",fontSize:14,fontWeight:600,cursor:"pointer" }}>← Back</button>}
-        {onCancel && step===0 && <button onClick={onCancel} style={{ flex:1,padding:12,borderRadius:12,border:"1px solid rgba(255,255,255,0.1)",background:"transparent",color:"rgba(255,255,255,0.4)",fontSize:14,cursor:"pointer" }}>Cancel</button>}
-        {step < STEPS.length-1
-          ? <button onClick={next} style={{ flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:14,fontWeight:700,cursor:"pointer" }}>Continue →</button>
-          : <button onClick={submit} disabled={loading} style={{ flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg,#d4af37,#f5d060)",color:"#0a0f1e",fontSize:15,fontWeight:700,cursor:"pointer",opacity:loading?0.7:1 }}>{loading?"Finding your matches...":"✦ Find My Best Matches"}</button>
-        }
-      </div>
-    </div>
-  );
-}
+// ScholarProfileForm and STEPS are defined in ScholarProfileForm.jsx
 
 // ─── Profile Page ─────────────────────────────────────────────────────────────
 function ProfilePage({ user, onBack, onUpgrade, stripeLoading, onUserUpdate }) {
@@ -946,6 +865,9 @@ export default function App() {
   const intervalRef = useRef(null); const msgIdx = useRef(0);
   const canvasRef = useRef(null);
   const [navScrolled, setNavScrolled] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
+  const [reminders, setReminders] = useState([]);
+  const [searchContext, setSearchContext] = useState("");
 
   useEffect(() => {
     const onScroll = () => setNavScrolled(window.scrollY > 20);
@@ -1030,6 +952,7 @@ export default function App() {
           setSavedIds(new Set((data.user.savedScholarships||[]).map(s=>`${s.name}||${s.institution}`)));
           if (data.user.isPro) {
             api("/api/reminders").then(r=>r.json()).then(d => {
+              setReminders(d.reminders || []);
               setReminderIds(new Set((d.reminders||[]).map(r=>r.id)));
             }).catch(()=>{});
           }
@@ -1099,8 +1022,74 @@ export default function App() {
 
   const reset = () => { setPhase("idle"); setResults([]); setError(""); setTotalFound(null); };
 
+  const runSearch = async (scholarProfile) => {
+    if (!user) return setShowAuth(true);
+    setError(""); setPhase("searching"); setResults([]);
+    msgIdx.current = 0; setLoadingMsg(MATCH_MSGS[0]);
+    intervalRef.current = setInterval(() => {
+      msgIdx.current = (msgIdx.current + 1) % MATCH_MSGS.length;
+      setLoadingMsg(MATCH_MSGS[msgIdx.current]);
+    }, 1800);
+    try {
+      const res = await api("/api/match", { method: "POST", body: JSON.stringify({ scholarProfile }) });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.error === "FREE_LIMIT_REACHED" || data.error === "PRO_REQUIRED") {
+          setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return;
+        }
+        throw new Error(data.error || data.message);
+      }
+      setResults(data.scholarships || []);
+      if (data.totalFound) setTotalFound(data.totalFound);
+      setUser(u => ({ ...u, searchCount: (u.searchCount || 0) + 1, scholarProfile }));
+      const ctx = [scholarProfile.fieldOfStudy, scholarProfile.nationality].filter(Boolean).join(" · ");
+      setSearchContext(ctx);
+      setRecentSearches(prev => [{
+        label: ctx || "Search",
+        count: data.totalFound || (data.scholarships || []).length,
+        date: "Today",
+      }, ...prev.slice(0, 3)]);
+    } catch(e) { setError(e.message); setPhase("idle"); }
+    finally { clearInterval(intervalRef.current); setPhase(p => p === "searching" ? "results" : p); }
+  };
+
   if (!authReady) return <div style={{ minHeight:"100vh",background:"radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%)",display:"flex",alignItems:"center",justifyContent:"center" }}><div style={{ color:"rgba(255,255,255,0.3)",fontSize:14 }}>Loading...</div></div>;
 
+  // Home page uses the new full-screen chat-sidebar layout
+  if (page === "home") {
+    return (
+      <>
+        {showAuth && <AuthModal onAuth={handleAuth} />}
+        {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
+        {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
+        {deeplinkedScholarship && <DeeplinkModal scholarship={deeplinkedScholarship} onClose={()=>setDeeplinkedScholarship(null)} onSave={handleSave} savedIds={savedIds} onEssay={s=>{setDeeplinkedScholarship(null);if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onUpgrade={handleUpgrade} />}
+        {reminderScholarship && <ReminderModal scholarship={reminderScholarship} onClose={()=>setReminderScholarship(null)} onSave={r=>{setReminders(r);setReminderIds(new Set(r.map(x=>x.id)));}} />}
+        <KalomaLayout
+          user={user}
+          phase={phase}
+          results={results}
+          totalFound={totalFound}
+          savedIds={savedIds}
+          reminderIds={reminderIds}
+          recentSearches={recentSearches}
+          reminders={reminders}
+          loadingMsg={loadingMsg}
+          searchContext={searchContext}
+          onSearch={runSearch}
+          onSave={handleSave}
+          onEssay={s => { if (!user?.isPro) { setUpgradeReason("general"); setShowUpgrade(true); } else { setEssayScholarship(s); } }}
+          onReminder={s => { if (!user?.isPro) { setUpgradeReason("general"); setShowUpgrade(true); } else { setReminderScholarship(s); } }}
+          onUpgrade={handleUpgrade}
+          onNewSearch={reset}
+          onShowAuth={() => setShowAuth(true)}
+          onGoProfile={() => setPage("profile")}
+          onLogout={logout}
+        />
+      </>
+    );
+  }
+
+  // Profile page keeps the old nav + canvas layout
   return (
     <div className="min-h-screen" style={{ background:"radial-gradient(ellipse at 50% 48%,#0d1c38 0%,#060b18 52%,#020609 100%)",position:"relative",overflowX:"hidden" }}>
       <canvas ref={canvasRef} style={{ position:"fixed",inset:0,width:"100%",height:"100%",zIndex:0,pointerEvents:"none" }} />
@@ -1109,7 +1098,7 @@ export default function App() {
       {showUpgrade && <UpgradeModal onUpgrade={handleUpgrade} onClose={()=>setShowUpgrade(false)} loading={stripeLoading} reason={upgradeReason} />}
       {essayScholarship && <EssayModal scholarship={essayScholarship} userProfile={user?.scholarProfile} onClose={()=>setEssayScholarship(null)} />}
       {deeplinkedScholarship && <DeeplinkModal scholarship={deeplinkedScholarship} onClose={()=>setDeeplinkedScholarship(null)} onSave={handleSave} savedIds={savedIds} onEssay={s=>{setDeeplinkedScholarship(null);if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onUpgrade={handleUpgrade} />}
-      {reminderScholarship && <ReminderModal scholarship={reminderScholarship} onClose={()=>setReminderScholarship(null)} onSave={r=>{setReminderIds(new Set(r.map(x=>x.id)));}} />}
+      {reminderScholarship && <ReminderModal scholarship={reminderScholarship} onClose={()=>setReminderScholarship(null)} onSave={r=>{setReminders(r);setReminderIds(new Set(r.map(x=>x.id)));}} />}
 
       {/* ── Nav ── */}
       <nav style={{ position:"fixed",top:0,left:0,right:0,zIndex:50,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 32px",transition:"background 0.4s,backdrop-filter 0.4s,border-color 0.4s",borderBottom:`1px solid ${navScrolled?"rgba(255,255,255,0.05)":"transparent"}`,background:navScrolled?"rgba(6,11,24,0.85)":"transparent",backdropFilter:navScrolled?"blur(20px)":"none" }}>
@@ -1171,107 +1160,6 @@ export default function App() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6" style={{ position:"relative",zIndex:1,paddingTop:"96px",paddingBottom:"48px" }}>
         {page==="profile"&&user && (
           <ProfilePage user={user} onBack={()=>setPage("home")} onUpgrade={handleUpgrade} stripeLoading={stripeLoading} onUserUpdate={(updates)=>setUser(u=>({...u,...updates}))} />
-        )}
-
-        {page==="home" && (
-          <>
-            {phase==="idle" && (
-              <div className="animate-fade-up">
-                <div className="text-center mb-10 sm:mb-14">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-xs font-semibold tracking-widest uppercase" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>✦ &nbsp;6 agents · 40+ sources · worldwide</div>
-                  <h1 className="font-display font-black text-white mb-4 leading-none" style={{ fontSize:"clamp(32px,7vw,68px)",letterSpacing:"-0.03em" }}>Discover your funding<br /><span className="shimmer-text">the world over.</span></h1>
-                  <p className="text-sm sm:text-base max-w-lg mx-auto leading-relaxed" style={{ color:"rgba(255,255,255,0.45)" }}>AI agents scan universities, governments, foundations and industry bodies — surfacing opportunities matched precisely to you.</p>
-                </div>
-                <div className="rounded-2xl p-4 sm:p-8 glass-card">
-                  {error&&<div className="mb-4 rounded-xl px-4 py-3 text-sm" style={{ background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>}
-                  {user&&!user.isPro&&(user.searchCount||0)>=1&&(
-                    <div className="mb-5 rounded-xl px-4 py-3 text-sm" style={{ background:"rgba(212,175,55,0.08)",border:"1px solid rgba(212,175,55,0.2)",color:"#d4af37" }}>
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <span>⚠ Free search used. Upgrade for unlimited.</span>
-                        <button onClick={()=>{setUpgradeReason("search_limit");setShowUpgrade(true);}} style={{ background:"linear-gradient(135deg,#d4af37,#f5d060)",border:"none",color:"#0a0f1e",padding:"5px 12px",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap" }}>Upgrade</button>
-                      </div>
-                    </div>
-                  )}
-                  <ScholarProfileForm
-                    initial={user?.scholarProfile||{}}
-                    loading={phase==="searching"}
-                    onSubmit={p=>{
-                      if (!user) return setShowAuth(true);
-                      setError(""); setPhase("searching"); setResults([]);
-                      msgIdx.current=0; setLoadingMsg(MATCH_MSGS[0]);
-                      intervalRef.current = setInterval(()=>{ msgIdx.current=(msgIdx.current+1)%MATCH_MSGS.length; setLoadingMsg(MATCH_MSGS[msgIdx.current]); },1800);
-                      api("/api/match",{ method:"POST",body:JSON.stringify({scholarProfile:p}) })
-                        .then(r=>r.json())
-                        .then(data=>{
-                          if (data.error==="FREE_LIMIT_REACHED"||data.error==="PRO_REQUIRED") { setUpgradeReason("search_limit"); setShowUpgrade(true); setPhase("idle"); return; }
-                          if (!data.scholarships) throw new Error(data.error||data.message||"No results");
-                          setResults(data.scholarships);
-                          if (data.totalFound) setTotalFound(data.totalFound);
-                          setUser(u=>({...u,searchCount:(u.searchCount||0)+1,scholarProfile:p}));
-                        })
-                        .catch(e=>{ setError(e.message); })
-                        .finally(()=>{ clearInterval(intervalRef.current); setPhase(p=>p==="searching"?"results":p); });
-                    }}
-                  />
-                  <p className="text-center text-xs mt-4" style={{ color:"rgba(255,255,255,0.2)" }}>
-                    {user ? (user.isPro?"Unlimited searches · All results unlocked":`${1-(user.searchCount||0)} free search remaining`) : "Free account required · No credit card needed"}
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-                  {[
-                    { icon:"✦",title:"AI-Matched Results",desc:"Our AI ranks scholarships by your personal profile and win probability." },
-                    { icon:"🌍",title:"40+ Global Sources",desc:"Universities, governments, foundations and industry bodies worldwide." },
-                    { icon:"★",title:"Save & Track",desc:"Bookmark scholarships and revisit your match history anytime." },
-                  ].map(f=>(
-                    <div key={f.title} className="rounded-2xl p-4 sm:p-5" style={{ background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)" }}>
-                      <div style={{ fontSize:22,marginBottom:8 }}>{f.icon}</div>
-                      <div className="text-sm font-bold text-white mb-1">{f.title}</div>
-                      <div className="text-xs leading-relaxed" style={{ color:"rgba(255,255,255,0.35)" }}>{f.desc}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {phase==="searching" && (
-              <div className="animate-fade-up">
-                <div className="text-center mb-8">
-                  <div style={{ width:52,height:52,borderRadius:14,background:"rgba(212,175,55,0.1)",border:"1px solid rgba(212,175,55,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,margin:"0 auto 16px",animation:"spin 3s linear infinite" }}>◎</div>
-                  <h2 className="font-display text-2xl font-black text-white mb-2">Agents Deployed</h2>
-                  <p className="text-sm font-medium" style={{ color:"#d4af37" }}>{loadingMsg}</p>
-                </div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color:"rgba(255,255,255,0.35)" }}>Active Agents ({AGENT_SOURCES.length})</h3>
-                  <div className="flex items-center gap-2"><div style={{ width:5,height:5,borderRadius:"50%",background:"#d4af37",animation:"pulse-dot 1.5s infinite" }} /><span className="text-xs font-semibold" style={{ color:"#d4af37" }}>Searching in parallel</span></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{AGENT_SOURCES.map((a,i)=><div key={i} className={i>=3?"hidden sm:block":""}><AgentCard agent={a} index={i} /></div>)}</div>
-              </div>
-            )}
-
-            {phase==="results" && (
-              <div className="animate-fade-up">
-                {error
-                  ? <div className="rounded-2xl p-6 text-sm" style={{ background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",color:"#fca5a5" }}>{error}</div>
-                  : <>
-                      <div className="flex items-start justify-between mb-6 gap-3">
-                        <div>
-                          <div className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color:"#d4af37" }}>Match complete</div>
-                          <h2 className="font-display text-2xl sm:text-3xl font-black text-white" style={{ letterSpacing:"-0.02em" }}>{totalFound ?? results.length} Matched</h2>
-                          <p className="text-xs sm:text-sm mt-1" style={{ color:"rgba(255,255,255,0.35)" }}>{[type,university,region].filter(Boolean).join(" · ")||"Worldwide"}</p>
-                        </div>
-                        <div className="text-xs font-bold px-3 py-1.5 rounded-xl shrink-0" style={{ background:"rgba(74,222,128,0.1)",border:"1px solid rgba(74,222,128,0.2)",color:"#4ade80" }}>✓ AI Verified</div>
-                      </div>
-                      <div className="flex flex-col gap-4">{results.slice(0,FREE_LIMIT).map((s,i)=><ScholarshipCard key={i} s={s} index={i} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setEssayScholarship(s);}}} isPro={user?.isPro} onReminder={s=>{if(!user?.isPro){setUpgradeReason("general");setShowUpgrade(true);}else{setReminderScholarship(s);}}} reminderIds={reminderIds} />)}</div>
-                      {!user?.isPro&&(totalFound??results.length)>FREE_LIMIT ? <BlurGate onUpgrade={handleUpgrade} loading={stripeLoading} topScholarship={results[FREE_LIMIT]} />
-                        : results.slice(FREE_LIMIT).map((s,i)=><div key={i+FREE_LIMIT} className="mt-4"><ScholarshipCard s={s} index={i+FREE_LIMIT} savedIds={savedIds} onSave={handleSave} showMatch={true} onEssay={s=>setEssayScholarship(s)} isPro={user?.isPro} onReminder={s=>setReminderScholarship(s)} reminderIds={reminderIds} /></div>)}
-                      <div className="mt-8 rounded-2xl p-5 text-center" style={{ background:"rgba(212,175,55,0.05)",border:"1px solid rgba(212,175,55,0.15)" }}>
-                        <p className="text-xs mb-4 leading-relaxed" style={{ color:"rgba(255,255,255,0.3)" }}>Always verify scholarship details on the institution's official website. Deadlines and amounts are subject to change.</p>
-                        <button onClick={reset} className="gold-btn px-6 py-2.5 rounded-xl text-sm font-bold">◎ New Search</button>
-                      </div>
-                    </>}
-              </div>
-            )}
-          </>
         )}
       </div>
     </div>
