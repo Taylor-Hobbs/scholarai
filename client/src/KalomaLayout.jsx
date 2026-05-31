@@ -390,39 +390,112 @@ function SearchingView({ loadingMsg }) {
   );
 }
 
+// ─── Results Controls (sort + filter) ───────────────────────────────────────────
+function ResultsControls({ results, sortBy, setSortBy, filterType, setFilterType }) {
+  const types = [...new Set(results.map(s => s.type).filter(Boolean))];
+
+  const pill = (active) => ({
+    padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+    cursor: "pointer", border: "none", whiteSpace: "nowrap",
+    background: active ? "rgba(212,175,55,0.12)" : "rgba(255,255,255,0.05)",
+    color: active ? "#d4af37" : "rgba(255,255,255,0.4)",
+    outline: active ? "1px solid rgba(212,175,55,0.35)" : "1px solid transparent",
+  });
+
+  return (
+    <div style={{
+      padding: "8px 14px 8px",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
+    }}>
+      <select
+        value={sortBy}
+        onChange={e => setSortBy(e.target.value)}
+        style={{
+          background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+          color: "white", fontSize: 11, fontWeight: 600,
+          padding: "4px 8px", borderRadius: 7, cursor: "pointer", outline: "none",
+        }}
+      >
+        <option value="match">↓ Match Score</option>
+        <option value="amount">↓ Amount</option>
+        <option value="deadline">↑ Deadline</option>
+        <option value="name">A → Z</option>
+      </select>
+
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {["", ...types].map(t => (
+          <button key={t || "all"} onClick={() => setFilterType(t)} style={pill(filterType === t)}>
+            {t || "All"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Results View ────────────────────────────────────────────────────────────────
 function ResultsView({
   results, totalFound, isPro, expandedCardId, onToggleCard,
   onSave, onEssay, onReminder, savedIds, reminderIds, onUpgrade, onApply,
 }) {
+  const [sortBy, setSortBy] = useState("match");
+  const [filterType, setFilterType] = useState("");
+
+  const parseAmount = str => parseInt((str || "").replace(/[^0-9]/g, "")) || 0;
+  const parseDeadline = str => {
+    if (!str) return Infinity;
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? Infinity : d.getTime();
+  };
+
+  // Filter then sort
+  let processed = filterType ? results.filter(s => s.type === filterType) : [...results];
+  processed.sort((a, b) => {
+    if (sortBy === "match")    return (b.matchScore || 0) - (a.matchScore || 0);
+    if (sortBy === "amount")   return parseAmount(b.amount) - parseAmount(a.amount);
+    if (sortBy === "deadline") return parseDeadline(a.deadline) - parseDeadline(b.deadline);
+    if (sortBy === "name")     return (a.name || "").localeCompare(b.name || "");
+    return 0;
+  });
+
   const limit = isPro ? PRO_LIMIT : FREE_LIMIT;
-  const visibleResults = results.slice(0, limit);
-  const extraResults = isPro ? results.slice(limit) : [];
-  const hiddenCount = totalFound ? totalFound - limit : Math.max(0, results.length - limit);
+  const visibleResults = processed.slice(0, limit);
+  const extraResults = isPro ? processed.slice(limit) : [];
+  const hiddenCount = totalFound
+    ? Math.max(0, totalFound - limit)
+    : Math.max(0, processed.length - limit);
 
   return (
-    <div style={{ padding: "12px 14px" }}>
-      {visibleResults.map((s, i) => (
-        <ResultCard key={i} s={s}
-          expanded={expandedCardId === i}
-          onToggle={() => onToggleCard(i)}
-          isPro={isPro} onSave={onSave} onEssay={onEssay} onReminder={onReminder}
-          savedIds={savedIds} reminderIds={reminderIds} onApply={onApply}
-        />
-      ))}
+    <div>
+      <ResultsControls
+        results={results}
+        sortBy={sortBy} setSortBy={setSortBy}
+        filterType={filterType} setFilterType={setFilterType}
+      />
+      <div style={{ padding: "12px 14px" }}>
+        {visibleResults.map((s, i) => (
+          <ResultCard key={`${s.name}-${i}`} s={s}
+            expanded={expandedCardId === i}
+            onToggle={() => onToggleCard(i)}
+            isPro={isPro} onSave={onSave} onEssay={onEssay} onReminder={onReminder}
+            savedIds={savedIds} reminderIds={reminderIds} onApply={onApply}
+          />
+        ))}
 
-      {!isPro && hiddenCount > 0 && (
-        <UpgradeNudge hiddenCount={hiddenCount} onUpgrade={onUpgrade} />
-      )}
+        {!isPro && hiddenCount > 0 && (
+          <UpgradeNudge hiddenCount={hiddenCount} onUpgrade={onUpgrade} />
+        )}
 
-      {extraResults.map((s, i) => (
-        <ResultCard key={i + limit} s={s}
-          expanded={expandedCardId === i + limit}
-          onToggle={() => onToggleCard(i + limit)}
-          isPro={isPro} onSave={onSave} onEssay={onEssay} onReminder={onReminder}
-          savedIds={savedIds} reminderIds={reminderIds} onApply={onApply}
-        />
-      ))}
+        {extraResults.map((s, i) => (
+          <ResultCard key={`${s.name}-${i + limit}`} s={s}
+            expanded={expandedCardId === i + limit}
+            onToggle={() => onToggleCard(i + limit)}
+            isPro={isPro} onSave={onSave} onEssay={onEssay} onReminder={onReminder}
+            savedIds={savedIds} reminderIds={reminderIds} onApply={onApply}
+          />
+        ))}
+      </div>
     </div>
   );
 }
