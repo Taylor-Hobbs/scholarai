@@ -323,7 +323,7 @@ function ResultCard({ s, expanded, onToggle, isPro, onSave, onEssay, onReminder,
               fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
               whiteSpace: "nowrap", minHeight: 36,
               display: "flex", alignItems: "center",
-            }}>Apply →</button>
+            }}>Learn More →</button>
 
             <button onClick={e => { e.stopPropagation(); onSave(s); }} style={{
               padding: "7px 12px", borderRadius: 7,
