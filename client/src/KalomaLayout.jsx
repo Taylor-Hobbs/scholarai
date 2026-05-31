@@ -851,7 +851,7 @@ export default function KalomaLayout({
             />
           )}
           {phase === "idle" && !chatMode && (
-            <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 20px 24px" }}>
+            <div style={{ maxWidth: 860, margin: "0 auto", padding: "28px 40px 24px" }}>
               <ScholarProfileForm
                 existing={user?.scholarProfile || {}}
                 onSubmit={onSearch}
